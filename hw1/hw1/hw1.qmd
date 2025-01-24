@@ -3,6 +3,7 @@ title: "Biostat 203B Homework 1"
 subtitle: Due Jan 24, 2025 @ 11:59PM
 author: Wenqiang Ge and 106371961
 format:
+  #pdf:default
   html:
     theme: cosmo
     embed-resources: true
@@ -36,11 +37,15 @@ sessionInfo()
 
 5.  After this course, you can make this repository public and use it to demonstrate your skill sets on job market.
 
+**Solution:**
+
 Done!
 
 ## Q2. Data ethics training
 
 This exercise (and later in this course) uses the [MIMIC-IV data v3.1](https://physionet.org/content/mimiciv/3.1/), a freely accessible critical care database developed by the MIT Lab for Computational Physiology. Follow the instructions at <https://mimic.mit.edu/docs/gettingstarted/> to (1) complete the CITI `Data or Specimens Only Research` course and (2) obtain the PhysioNet credential for using the MIMIC-IV data. Display the verification links to your completion report and completion certificate here. **You must complete Q2 before working on the remaining questions.** (Hint: The CITI training takes a few hours and the PhysioNet credentialing takes a couple days; do not leave it to the last minute.)
+
+**Solution:**
 
 Completion Report Link: <https://www.citiprogram.org/verify/?kcc436586-af5d-4128-bb91-ef37f2326698-67297842>
 
@@ -64,9 +69,11 @@ Use Bash commands to answer following questions.
 
 2.  Display the contents in the folders `hosp` and `icu` using Bash command `ls -l`. Why are these data files distributed as `.csv.gz` files instead of `.csv` (comma separated values) files? Read the page <https://mimic.mit.edu/docs/iv/> to understand what's in each folder.
 
-    ```{bash}
-    ls -l ~/mimic/hosp
-    ```
+**Solution:**
+
+```{bash}
+ls -l ~/mimic/hosp
+```
 
 ```{bash}
 ls -l ~/mimic/icu
@@ -77,6 +84,8 @@ Compressed files save disk space as `.gz` files are smaller than raw `.csv` file
 3.  Briefly describe what Bash commands `zcat`, `zless`, `zmore`, and `zgrep` do.
 
 zcat: Outputs the contents of a compressed .gz file to the standard output without decompressing it to disk.
+
+**Solution:**
 
 zless: Allows you to view a compressed .gz file interactively, similar to less for uncompressed files.
 
@@ -96,6 +105,8 @@ done
 
 Display the number of lines in each data file using a similar loop. (Hint: combine linux commands `zcat <` and `wc -l`.)
 
+**Solution:**
+
 ```{bash}
 for datafile in ~/mimic/hosp/*.gz
 do 
@@ -114,6 +125,8 @@ done
 
 5.  Display the first few lines of `admissions.csv.gz`. How many rows are in this data file, excluding the header line? Each `hadm_id` identifies a hospitalization. How many hospitalizations are in this data file? How many unique patients (identified by `subject_id`) are in this da\`ta file? Do they match the number of patients listed in the `patients.csv.gz` file? (Hint: combine Linux commands `zcat <`, `head`/`tail`, `awk`, `sort`, `uniq`, `wc`, and so on.)
 
+**Solution:**
+
 ```{bash}
 zcat ~/mimic/hosp/admissions.csv.gz | head
 
@@ -128,7 +141,6 @@ zcat ~/mimic/hosp/admissions.csv.gz | tail -n+2 | \
 
 zcat ~/mimic/hosp/patients.csv.gz | tail -n+2 | \
   awk -F, '{print $1}' | sort | uniq | wc -l
-
 ```
 
 There are 546028 lines in the adimission.csv.gz.
@@ -138,6 +150,8 @@ There are 546028 lines in the adimission.csv.gz.
 There are 364627 unique patients listed in the patients.csv.gz file. They are not matched.
 
 6.  What are the possible values taken by each of the variable `admission_type`, `admission_location`, `insurance`, and `ethnicity`? Also report the count for each unique value of these variables in decreasing order. (Hint: combine Linux commands `zcat`, `head`/`tail`, `awk`, `uniq -c`, `wc`, `sort`, and so on; skip the header line.)
+
+**Solution:**
 
 ```{bash}
 zcat ~/mimic/hosp/admissions.csv.gz | head -n 1 | tr ',' '\n' | nl
@@ -160,6 +174,8 @@ zcat ~/mimic/hosp/admissions.csv.gz | tail -n+2 | \
 
 7.  The `icusays.csv.gz` file contains all the ICU stays during the study period. How many ICU stays, identified by `stay_id`, are in this data file? How many unique patients, identified by `subject_id`, are in this data file?
 
+**Solution:**
+
 ```{bash}
 zcat ~/mimic/icu/icustays.csv.gz | head -n 1 | tr ',' '\n' |nl
 ```
@@ -181,6 +197,8 @@ zcat ~/mimic/icu/icustays.csv.gz | tail -n+2 | \
 There are 94458 ICU stays and 65366 unique patients in this data file.
 
 8.  *To compress, or not to compress. That's the question.* Let's focus on the big data file `labevents.csv.gz`. Compare compressed gz file size to the uncompressed file size. Compare the run times of `zcat < ~/mimic/labevents.csv.gz | wc -l` versus `wc -l labevents.csv`. Discuss the trade off between storage and speed for big data files. (Hint: `gzip -dk < FILENAME.gz > ./FILENAME`. Remember to delete the large `labevents.csv` file after the exercise.)
+
+**Solution:**
 
 Comparison of file size:
 
@@ -207,11 +225,7 @@ time wc -l ~/mimic/hosp/labevents.csv
 rm ~/mimic/hosp/labevents.csv
 ```
 
-Trade off:
-
-Storage trade-off Compressing files can save a lot of disk space and reduce network transmission time when moving data. Uncompressed files require more disk space, which may not be feasible for very large datasets.
-
-Due to decompression overhead, reading compressed files (zcat) may be slightly slower. However, for linear operations such as counting lines (wc-l), this difference can usually be ignored. The operation of uncompressed files can be faster because there is no decompression step. For very large files, the speed improvement may be obvious, but the storage overhead may outweigh the benefits.
+**Trade off:** Storage trade-off Compressing files can save a lot of disk space and reduce network transmission time when moving data. Uncompressed files require more disk space, which may not be feasible for very large datasets. Due to decompression overhead, reading compressed files (zcat) may be slightly slower. However, for linear operations such as counting lines (wc-l), this difference can usually be ignored. The operation of uncompressed files can be faster because there is no decompression step. For very large files, the speed improvement may be obvious, but the storage overhead may outweigh the benefits.
 
 ## Q4. Who's popular in Price and Prejudice
 
@@ -234,7 +248,9 @@ do
 done
 ```
 
-**wget is used to download files from the web.**
+Solution:
+
+wget is used to download files from the web.
 
 2.  What's the difference between the following two commands?
 
@@ -250,9 +266,11 @@ and
 echo 'hello, world' >> test2.txt
 ```
 
-**The first one creates a new file test1.txt (if it doesn’t already exist) and writes 'hello, world' to it. If test1.txt already exists, this command overwrites the file, replacing its contents with 'hello, world'.**
+**Solution:**
 
-**If test2.txt doesn’t exist, the second command creates the file first and writes 'hello, world' to it. If test2.txt already exists, this command adds 'hello, world' to the end of the existing file without deleting its previous contents.**
+The first one creates a new file test1.txt (if it doesn’t already exist) and writes 'hello, world' to it. If test1.txt already exists, this command overwrites the file, replacing its contents with 'hello, world'.
+
+If test2.txt doesn’t exist, the second command creates the file first and writes 'hello, world' to it. If test2.txt already exists, this command adds 'hello, world' to the end of the existing file without deleting its previous contents.
 
 3.  Using your favorite text editor (e.g., `vi`), type the following and save the file as `middle.sh`:
 
@@ -273,21 +291,25 @@ chmod u+x middle.sh
 
 Explain the output. Explain the meaning of `"$1"`, `"$2"`, and `"$3"` in this shell script. Why do we need the first line of the shell script?
 
-**head -n 20 pg42671.txt: Extracts the first 20 lines of the file pg42671.txt.**
+**Solution:**
 
-**tail -n 5: From the 20 lines produced by head, it extracts the last 5 lines.**
+head -n 20 pg42671.txt: Extracts the first 20 lines of the file pg42671.txt.
 
-**The command runs the shell script middle.sh on the file pg42671.txt, extracting 5 lines from the end of the first 20 lines of the file.**
+tail -n 5: From the 20 lines produced by head, it extracts the last 5 lines.
 
-**In shell scripting, \$1, \$2, \$3, etc., refer to the positional parameters.**
+The command runs the shell script middle.sh on the file pg42671.txt, extracting 5 lines from the end of the first 20 lines of the file.
 
-**\$1: The first argument, in this case, the file name (pg42671.txt). \$2: The second argument, representing the total number of lines to extract from the beginning of the file. \$3: The third argument, representing the number of lines to extract from the result of head.**
+In shell scripting, \$1, \$2, \$3, etc., refer to the positional parameters.
 
-**The shebang ensures that the correct shell is used to interpret the script. If we don't use it, the script might default to another shell (e.g., bash, zsh), which could lead to unexpected behavior if the script uses syntax specific to sh.**
+\$1: The first argument, in this case, the file name (pg42671.txt). \$2: The second argument, representing the total number of lines to extract from the beginning of the file. \$3: The third argument, representing the number of lines to extract from the result of head.
+
+The shebang ensures that the correct shell is used to interpret the script. If we don't use it, the script might default to another shell (e.g., bash, zsh), which could lead to unexpected behavior if the script uses syntax specific to sh.
 
 ## Q5. More fun with Linux
 
 Try following commands in Bash and interpret the results: `cal`, `cal 2025`, `cal 9 1752` (anything unusual?), `date`, `hostname`, `arch`, `uname -a`, `uptime`, `who am i`, `who`, `w`, `id`, `last | head`, `echo {con,pre}{sent,fer}{s,ed}`, `time sleep 5`, `history | tail`.
+
+**Solution:**
 
 ```{bash}
 cal
@@ -325,6 +347,8 @@ The point of this exercise is (1) to obtain the book for free and (2) to see an 
 
 For grading purpose, include a screenshot of Section 4.1.5 of the book here.
 
-**Solution:** I cloned the reporsitory and compiled the book. Here is the screenshot of Section 4.1.5 of the book. 
+**Solution:**
+
+I cloned the reporsitory and compiled the book. Here is the screenshot of Section 4.1.5 of the book.
 
 ![](images/clipboard-3489899846.png)
