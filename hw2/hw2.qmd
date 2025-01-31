@@ -225,6 +225,8 @@ tryCatch({
 
 ```
 
+![](images/clipboard-2141023261.png)
+
 ### Q2.3 Ingest a subset of `labevents.csv.gz`
 
 ::: center
@@ -241,7 +243,6 @@ Solution:
 
 ```{bash}
 #| eval: false
-
 zcat < ~/mimic/hosp/labevents.csv.gz | awk -F',' '
     BEGIN { OFS=","; print "subject_id,itemid,charttime,valuenum" } 
     NR == 1 { 
@@ -329,6 +330,8 @@ print(head(labevents_filtered_arrow, 10))
 
 ```
 
+"Apache Arrow is like a high-speed train for data. Traditional ways of handling large datasets are like moving boxes one by one, while Arrow loads entire train cars at once, making processing incredibly fast. It keeps data in a format that multiple tools (R, Python, Spark) can read efficiently without extra conversions. This means you can analyze massive datasets quickly without running out of memory. If you work with big data, Arrow is your secret weapon for speed and efficiency!"
+
 ### Q2.5 Compress `labevents.csv` to Parquet format and ingest/select/filter
 
 ::: center
@@ -339,6 +342,60 @@ Re-write the csv file `labevents.csv` in the binary Parquet format (Hint: [`arro
 
 Write a few sentences to explain what is the Parquet format. Imagine you want to explain it to a layman in an elevator.
 
+------------------------------------------------------------------------
+
+Solution:
+
+```{r}
+labevents_csv <- open_dataset("~/biostat-203b-2025-winter/hw2/labevents.csv", format = "csv")
+
+write_dataset(
+  labevents_csv,
+  path = "~/biostat-203b-2025-winter/hw2/labevents_parquet",
+  format = "parquet"
+)
+```
+
+```{r}
+parquet_size <- system("du -sh ~/biostat-203b-2025-winter/hw2/labevents_parquet/", intern = TRUE)
+cat("Size of Parquet dataset:", parquet_size, "\n")
+
+```
+
+```{r}
+library(arrow)
+library(dplyr)
+
+# Start timing
+start_time <- Sys.time()
+
+# Open the Parquet dataset
+labevents_parquet_ds <- open_dataset(
+  path = "~/biostat-203b-2025-winter/hw2/labevents_parquet", 
+  format = "parquet"
+)
+
+# Select only required columns and filter for specific itemid values
+labevents_filtered_parquet <- labevents_parquet_ds %>%
+  select(subject_id, itemid, charttime, valuenum) %>%
+  filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) %>%
+  collect()  # Convert to in-memory tibble
+
+# End timing
+end_time <- Sys.time()
+elapsed_time <- difftime(end_time, start_time, units = "secs")
+
+# Display processing time
+cat("Time taken for ingestion, selection, and filtering (Parquet):", round(elapsed_time, 2), "seconds\n")
+
+# Display number of rows in the filtered dataset
+cat("Number of rows in filtered dataset (Parquet):", nrow(labevents_filtered_parquet), "\n")
+
+# Display the first 10 rows
+print(head(labevents_filtered_parquet, 10))
+
+```
+
 ### Q2.6 DuckDB
 
 ::: center
@@ -347,7 +404,15 @@ Write a few sentences to explain what is the Parquet format. Imagine you want to
 
 Ingest the Parquet file, convert it to a DuckDB table by [`arrow::to_duckdb`](https://arrow.apache.org/docs/r/reference/to_duckdb.html), select columns, and filter rows as in Q2.5. How long does the ingest+convert+select+filter process take? Display the number of rows and the first 10 rows of the result tibble and make sure they match those in Q2.3. (Hint: use `dplyr` verbs for selecting columns and filtering rows.)
 
+------------------------------------------------------------------------
+
+Solution:
+
 Write a few sentences to explain what is DuckDB. Imagine you want to explain it to a layman in an elevator.
+
+------------------------------------------------------------------------
+
+Solution:
 
 ## Q3. Ingest and filter `chartevents.csv.gz`
 
