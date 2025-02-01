@@ -64,6 +64,10 @@ There are quite a few utilities in R for reading plain text data files. Let us t
 
 Which function is fastest? Is there difference in the (default) parsed data types? How much memory does each resultant data frame or tibble use? (Hint: `system.time` measures run times; `pryr::object_size` measures memory usage; all these readers can take gz file as input without explicit decompression.)
 
+------------------------------------------------------------------------
+
+Solution:
+
 ```{r}
 library(microbenchmark)
 library(readr)
@@ -91,10 +95,6 @@ print(data.frame(
 ))
 ```
 
-------------------------------------------------------------------------
-
-Solution:
-
 The fastest function of reading a compressed csv file is fread. The best memory efficiency function is fread().
 
 read.csv() (Base R): Converts character columns to factors.
@@ -106,6 +106,10 @@ fread() (data.table): Automatically detects optimal types for speed & memory eff
 ### Q1.2 User-supplied data types
 
 Re-ingest `admissions.csv.gz` by indicating appropriate column data types in `read_csv`. Does the run time change? How much memory does the result tibble use? (Hint: `col_types` argument in `read_csv`.)
+
+------------------------------------------------------------------------
+
+Solution:
 
 ```{r}
 file_path <- "~/mimic/hosp/admissions.csv.gz"
@@ -133,10 +137,6 @@ system.time(df_optimized <- read_csv(file_path, col_types = col_spec))
 memory_optimized <- object_size(df_optimized) / (1024^2)  # Convert to MB
 print(paste("Optimized Tibble Memory Usage:", round(memory_optimized, 2), "MB"))
 ```
-
-------------------------------------------------------------------------
-
-Solution:
 
 Yes, both the runtime and memory have changed. The running time has become shorter and the required memory for operation has also decreased.
 
@@ -175,6 +175,7 @@ Try to ingest `labevents.csv.gz` using `read_csv`. What happens? If it takes mor
 Solution:
 
 ```{r}
+#| eval: false
 start_time <- Sys.time()
 
 tryCatch({
@@ -195,6 +196,8 @@ tryCatch({
 
 ```
 
+![](images/clipboard-3985632768.png)
+
 ### Q2.2 Ingest selected columns of `labevents.csv.gz` by `read_csv`
 
 Try to ingest only columns `subject_id`, `itemid`, `charttime`, and `valuenum` in `labevents.csv.gz` using `read_csv`. Does this solve the ingestion issue? (Hint: `col_select` argument in `read_csv`.)
@@ -204,6 +207,7 @@ Try to ingest only columns `subject_id`, `itemid`, `charttime`, and `valuenum` i
 Solution:
 
 ```{r}
+#| eval: false
 start_time <- Sys.time()
 
 tryCatch({
@@ -224,6 +228,8 @@ tryCatch({
 })
 
 ```
+
+NO, it is the same result with Q2.1.
 
 ![](images/clipboard-2141023261.png)
 
@@ -259,6 +265,10 @@ zcat < ~/mimic/hosp/labevents.csv.gz | awk -F',' '
 
 Display the first 10 lines of the new file `labevents_filtered.csv.gz`. How many lines are in this new file, excluding the header? How long does it take `read_csv` to ingest `labevents_filtered.csv.gz`?
 
+------------------------------------------------------------------------
+
+Solution:
+
 ```{bash}
 zcat labevents_filtered.csv.gz | tail -n +2 | head -10
 
@@ -276,10 +286,6 @@ cat("Time taken to read labevents_filtered.csv.gz:",
       round(elapsed_time, 2), "seconds\n")
 
 ```
-
-------------------------------------------------------------------------
-
-Solution:
 
 There are 32679897 lines.
 
@@ -317,7 +323,6 @@ labevents_filtered_arrow <- labevents_ds %>%
   select(subject_id, itemid, charttime, valuenum) %>%
   filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) %>%
   collect() 
-
 
 end_time <- Sys.time()
 elapsed_time <- difftime(end_time, start_time, units = "secs")
@@ -359,40 +364,9 @@ write_dataset(
 ```{r}
 parquet_size <- system("du -sh ~/biostat-203b-2025-winter/hw2/labevents_parquet/", intern = TRUE)
 cat("Size of Parquet dataset:", parquet_size, "\n")
-
 ```
 
 ```{r}
-library(arrow)
-library(dplyr)
-
-# Start timing
-start_time <- Sys.time()
-
-# Open the Parquet dataset
-labevents_parquet_ds <- open_dataset(
-  path = "~/biostat-203b-2025-winter/hw2/labevents_parquet", 
-  format = "parquet"
-)
-
-# Select only required columns and filter for specific itemid values
-labevents_filtered_parquet <- labevents_parquet_ds %>%
-  select(subject_id, itemid, charttime, valuenum) %>%
-  filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) %>%
-  collect()  # Convert to in-memory tibble
-
-# End timing
-end_time <- Sys.time()
-elapsed_time <- difftime(end_time, start_time, units = "secs")
-
-# Display processing time
-cat("Time taken for ingestion, selection, and filtering (Parquet):", round(elapsed_time, 2), "seconds\n")
-
-# Display number of rows in the filtered dataset
-cat("Number of rows in filtered dataset (Parquet):", nrow(labevents_filtered_parquet), "\n")
-
-# Display the first 10 rows
-print(head(labevents_filtered_parquet, 10))
 
 ```
 
@@ -414,6 +388,35 @@ Write a few sentences to explain what is DuckDB. Imagine you want to explain it 
 
 Solution:
 
+```{r}
+start_time <- Sys.time()
+
+# Open the Parquet file
+labevents_parquet <- read_parquet("~/biostat-203b-2025-winter/hw2/labevents_parquet/part-0.parquet")
+
+# Convert to DuckDB
+con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+labevents_duckdb <- to_duckdb(con, labevents_parquet, table_name = "labevents")
+
+# Select and filter as in Q2.5
+labevents_filtered_duckdb <- tbl(con, "labevents") %>%
+  select(subject_id, itemid, charttime, valuenum) %>%
+  filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) %>%
+  collect()  # Convert to an in-memory tibble
+
+end_time <- Sys.time()
+elapsed_time <- difftime(end_time, start_time, units = "secs")
+
+cat("Time taken for ingest, convert, select, and filter:", round(elapsed_time, 2), "seconds\n")
+
+cat("Number of rows in filtered dataset:", nrow(labevents_filtered_duckdb), "\n")
+
+print(head(labevents_filtered_duckdb, 10))
+
+dbDisconnect(con)
+
+```
+
 ## Q3. Ingest and filter `chartevents.csv.gz`
 
 [`chartevents.csv.gz`](https://mimic.mit.edu/docs/iv/modules/icu/chartevents/) contains all the charted data available for a patient. During their ICU stay, the primary repository of a patient’s information is their electronic chart. The `itemid` variable indicates a single measurement type in the database. The `value` variable is the value measured for `itemid`. The first 10 lines of `chartevents.csv.gz` are
@@ -422,7 +425,7 @@ Solution:
 zcat < ~/mimic/icu/chartevents.csv.gz | head -10
 ```
 
-How many rows? 433 millions.
+How many rows? 433 millions.(432997491)
 
 ```{bash}
 #| eval: false
@@ -438,3 +441,41 @@ zcat < ~/mimic/icu/d_items.csv.gz | head -10
 In later exercises, we are interested in the vitals for ICU patients: heart rate (220045), mean non-invasive blood pressure (220181), systolic non-invasive blood pressure (220179), body temperature in Fahrenheit (223761), and respiratory rate (220210). Retrieve a subset of `chartevents.csv.gz` only containing these items, using the favorite method you learnt in Q2.
 
 Document the steps and show code. Display the number of rows and the first 10 rows of the result tibble.
+
+------------------------------------------------------------------------
+
+Solution:
+
+```{r}
+# Define file paths
+chartevents_path <- "~/mimic/icu/chartevents.csv.gz"
+parquet_path <- "~/mimic/icu/chartevents_vitals.parquet"
+
+# Start timing
+start_time <- Sys.time()
+
+#use arrow::open_dataset() to read the compressed CSV without fully loading it into memory.
+
+# Load and filter using Apache Arrow
+chartevents_vitals <- open_dataset(chartevents_path, format = "csv") %>%
+  select(subject_id, itemid, charttime, value) %>%
+  filter(itemid %in% c(220045, 220181, 220179, 223761, 220210)) %>%
+  collect()  # Convert to an in-memory tibble
+
+# Save as Parquet for faster access in future
+write_parquet(chartevents_vitals, parquet_path)
+
+# End timing
+end_time <- Sys.time()
+elapsed_time <- difftime(end_time, start_time, units = "secs")
+
+# Display processing time
+cat("Time taken for filtering and saving:", round(elapsed_time, 2), "seconds\n")
+
+# Display number of rows in the filtered dataset
+cat("Number of rows in filtered dataset:", nrow(chartevents_vitals), "\n")
+
+#Display first 10 rows
+print(head(chartevents_vitals, 10))
+
+```
