@@ -297,6 +297,16 @@ There are 32679897 lines.
 
 Our second strategy is to use [Apache Arrow](https://arrow.apache.org/) for larger-than-memory data analytics. Unfortunately Arrow does not work with gz files directly. First decompress `labevents.csv.gz` to `labevents.csv` and put it in the current working directory (do not add it in git!). To save render time, put `#| eval: false` at the beginning of this code chunk. TA will change it to `#| eval: true` when rendering your qmd file.
 
+------------------------------------------------------------------------
+
+Solution:
+
+```{bash}
+#| eval: false
+gzip -d -c ~/mimic/hosp/labevents.csv.gz > \
+~/biostat-203b-2025-winter/hw2/labevents.csv
+```
+
 Then use [`arrow::open_dataset`](https://arrow.apache.org/docs/r/reference/open_dataset.html) to ingest `labevents.csv`, select columns, and filter `itemid` as in Q2.3. How long does the ingest+select+filter process take? Display the number of rows and the first 10 rows of the result tibble, and make sure they match those in Q2.3. (Hint: use `dplyr` verbs for selecting columns and filtering rows.)
 
 Write a few sentences to explain what is Apache Arrow. Imagine you want to explain it to a layman in an elevator.
@@ -304,14 +314,6 @@ Write a few sentences to explain what is Apache Arrow. Imagine you want to expla
 ------------------------------------------------------------------------
 
 Solution:
-
-```{bash}
-#| eval: false
-
-gzip -d -c ~/mimic/hosp/labevents.csv.gz > \
-~/biostat-203b-2025-winter/hw2/labevents.csv
-
-```
 
 ```{r}
 start_time <- Sys.time()
@@ -321,21 +323,24 @@ labevents_ds <- open_dataset("~/biostat-203b-2025-winter/hw2/labevents.csv",
 
 labevents_filtered_arrow <- labevents_ds %>%
   select(subject_id, itemid, charttime, valuenum) %>%
-  filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) %>%
+  filter(itemid %in% c(50912, 50971, 50983, 50902, 
+                       50882, 51221, 51301, 50931)) %>%
   collect() 
 
 end_time <- Sys.time()
 elapsed_time <- difftime(end_time, start_time, units = "secs")
 
-cat("Time taken for ingestion, selection, and filtering:", round(elapsed_time, 2), "seconds\n")
+cat("Time taken for ingestion, selection, and filtering:", 
+    round(elapsed_time, 2), "seconds\n")
 
-cat("Number of rows in filtered dataset:", nrow(labevents_filtered_arrow), "\n")
+cat("Number of rows in filtered dataset:", 
+    nrow(labevents_filtered_arrow), "\n")
 
 print(head(labevents_filtered_arrow, 10))
 
 ```
 
-"Apache Arrow is like a high-speed train for data. Traditional ways of handling large datasets are like moving boxes one by one, while Arrow loads entire train cars at once, making processing incredibly fast. It keeps data in a format that multiple tools (R, Python, Spark) can read efficiently without extra conversions. This means you can analyze massive datasets quickly without running out of memory. If you work with big data, Arrow is your secret weapon for speed and efficiency!"
+Apache Arrow is like a high-speed data train. The traditional way of processing large datasets is like moving boxes one after another, while Arrow loads the entire train carriage at once, making the processing speed very fast. It saves data in a format that can be efficiently read by multiple tools (R, Python, Spark) without the need for additional conversions. This means that you can quickly analyze large datasets without running out of memory. If you handle big data, Arrow is your secret weapon for improving speed and efficiency.
 
 ### Q2.5 Compress `labevents.csv` to Parquet format and ingest/select/filter
 
@@ -352,7 +357,8 @@ Write a few sentences to explain what is the Parquet format. Imagine you want to
 Solution:
 
 ```{r}
-labevents_csv <- open_dataset("~/biostat-203b-2025-winter/hw2/labevents.csv", format = "csv")
+labevents_csv <- open_dataset("~/biostat-203b-2025-winter/hw2/labevents.csv", 
+                              format = "csv")
 
 write_dataset(
   labevents_csv,
@@ -362,11 +368,34 @@ write_dataset(
 ```
 
 ```{r}
-parquet_size <- system("du -sh ~/biostat-203b-2025-winter/hw2/labevents_parquet/", intern = TRUE)
+parquet_size <- system(
+  "du -sh ~/biostat-203b-2025-winter/hw2/labevents_parquet/", 
+  intern = TRUE)
 cat("Size of Parquet dataset:", parquet_size, "\n")
 ```
 
 ```{r}
+# 1. Open the Parquet dataset (created previously)
+parquet_data <- open_dataset(
+  "~/biostat-203b-2025-winter/hw2/labevents_parquet",
+  format = "parquet"
+)
+
+# 2. Time the ingest+select+filter process
+ingest_time <- system.time({
+  result <- parquet_data %>%
+    select(subject_id, hadm_id, itemid, charttime, value) %>%
+    filter(itemid %in% c(50912, 50971, 50983, 50902, 
+                         50882, 51221, 51301, 50931)) %>%  
+    collect()                   
+})
+
+cat("Time taken for ingestion, selection, and filtering:", 
+    ingest_time["elapsed"], "seconds\n")
+
+# 3. Display the number of rows and the first 10 rows
+cat("Number of rows in result:", nrow(result), "\n")
+head(result, 10)
 
 ```
 
