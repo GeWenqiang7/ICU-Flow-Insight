@@ -3,21 +3,21 @@ title: "Biostat 203B Homework 2"
 subtitle: Due Feb 7, 2025 @ 11:59PM
 author: "Wenqiang Ge UID:106371961"
 format:
-  # pdf:
-  #   documentclass: article
-  #   toc: true
-  #   toc-depth: 2
-  #   keep-tex: true
-  html:
-    theme: cosmo
-    embed-resources: true
-    number-sections: false
+  pdf:
+    documentclass: article
     toc: true
-    toc-depth: 4
-    toc-location: left
-    code-fold: false
-    link-external-icon: true
-    link-external-newwindow: true
+    toc-depth: 2
+    keep-tex: true
+  # html:
+  #   theme: cosmo
+  #   embed-resources: true
+  #   number-sections: false
+  #   toc: true
+  #   toc-depth: 4
+  #   toc-location: left
+  #   code-fold: false
+  #   link-external-icon: true
+  #   link-external-newwindow: true
 ---
 
 Display machine information for reproducibility:
@@ -135,7 +135,8 @@ col_spec <- cols(
 system.time(df_optimized <- read_csv(file_path, col_types = col_spec))
 
 memory_optimized <- object_size(df_optimized) / (1024^2)  # Convert to MB
-print(paste("Optimized Tibble Memory Usage:", round(memory_optimized, 2), "MB"))
+print(paste("Optimized Tibble Memory Usage:", 
+            round(memory_optimized, 2), "MB"))
 ```
 
 Yes, both the runtime and memory have changed. The running time has become shorter and the required memory for operation has also decreased.
@@ -198,6 +199,8 @@ tryCatch({
 
 ![](images/clipboard-3985632768.png)
 
+Compressed CSV files (. gz) are read line by line, but will significantly expand in memory. Files like labevents. csv. gz (which may have compressed several GB) may expand to tens of GB during loading. My system doesn't have enough RAM, R will run out of memory and crash. The read_csv() function in the reader reads the entire dataset into memory before processing and ultimately attempts to load all its contents into memory. Unlike databases, it cannot efficiently stream data, resulting in high memory usage and ultimately causing computer memory crashes.
+
 ### Q2.2 Ingest selected columns of `labevents.csv.gz` by `read_csv`
 
 Try to ingest only columns `subject_id`, `itemid`, `charttime`, and `valuenum` in `labevents.csv.gz` using `read_csv`. Does this solve the ingestion issue? (Hint: `col_select` argument in `read_csv`.)
@@ -212,7 +215,8 @@ start_time <- Sys.time()
 
 tryCatch({
   labevents <- read_csv("~/mimic/hosp/labevents.csv.gz", 
-                        col_select = c(subject_id, itemid, charttime, valuenum))
+                        col_select = c(subject_id, itemid, 
+                                       charttime, valuenum))
 
   end_time <- Sys.time()
   elapsed_time <- difftime(end_time, start_time, units = "mins")
@@ -229,9 +233,11 @@ tryCatch({
 
 ```
 
+![](images/clipboard-2141023261.png)
+
 NO, it is the same result with Q2.1.
 
-![](images/clipboard-2141023261.png)
+Even if fewer columns are read, read_csv() will still load all content into RAM. If the dataset has billions of rows and the memory usage is still high, it can cause R to crash. Even if I only selected a few columns, I still have to decompress the entire file first. The labevents.csv.gz file has been compressed, and read_csv() must first decompress it into memory, resulting in high RAM usage. At the same time, unlike databases, read_csv() loads all data into memory at once. It does not support streaming, so even selecting fewer columns cannot fully alleviate memory pressure.
 
 ### Q2.3 Ingest a subset of `labevents.csv.gz`
 
@@ -270,18 +276,28 @@ Display the first 10 lines of the new file `labevents_filtered.csv.gz`. How many
 Solution:
 
 ```{bash}
+#| eval: false
+# Display the first 10 rows of the file after skipping the header
 zcat labevents_filtered.csv.gz | tail -n +2 | head -10
 
+# Count the total number of rows in the file (excluding the header)
 expr $(zcat labevents_filtered.csv.gz | wc -l) - 1
 ```
 
 ```{r}
+# Start measuring time to evaluate performance
 start_time <- Sys.time()
 
+# Read the compressed CSV file using readr's read_csv()
+# This loads the dataset into memory, expanding the compressed file
 labevents_filtered <- read_csv("labevents_filtered.csv.gz")
+
+# Stop measuring time
 end_time <- Sys.time()
 
+# Calculate elapsed time (time taken to read the file)
 elapsed_time <- difftime(end_time, start_time, units = "secs")
+
 cat("Time taken to read labevents_filtered.csv.gz:", 
       round(elapsed_time, 2), "seconds\n")
 
@@ -318,14 +334,19 @@ Solution:
 ```{r}
 start_time <- Sys.time()
 
+# 1. Open the CSV dataset efficiently using Apache Arrow
+# Instead of reading the entire file into memory, Arrow allows for streaming
 labevents_ds <- open_dataset("~/biostat-203b-2025-winter/hw2/labevents.csv", 
                              format = "csv")
 
+# 2. Perform selection and filtering using dplyr functions
 labevents_filtered_arrow <- labevents_ds %>%
+  # Select only necessary columns
   select(subject_id, itemid, charttime, valuenum) %>%
+  # Filter specific item IDs
   filter(itemid %in% c(50912, 50971, 50983, 50902, 
                        50882, 51221, 51301, 50931)) %>%
-  collect() 
+  collect()#Bring the filtered results into memory as a tibble
 
 end_time <- Sys.time()
 elapsed_time <- difftime(end_time, start_time, units = "secs")
@@ -357,9 +378,11 @@ Write a few sentences to explain what is the Parquet format. Imagine you want to
 Solution:
 
 ```{r}
+#| eval: false
+# 1. Open the CSV dataset using Apache Arrow
 labevents_csv <- open_dataset("~/biostat-203b-2025-winter/hw2/labevents.csv", 
                               format = "csv")
-
+# 2. Write the dataset to Parquet format
 write_dataset(
   labevents_csv,
   path = "~/biostat-203b-2025-winter/hw2/labevents_parquet",
@@ -368,6 +391,7 @@ write_dataset(
 ```
 
 ```{r}
+# Use the system command to check the size of the Parquet dataset
 parquet_size <- system(
   "du -sh ~/biostat-203b-2025-winter/hw2/labevents_parquet/", 
   intern = TRUE)
@@ -384,10 +408,12 @@ parquet_data <- open_dataset(
 # 2. Time the ingest+select+filter process
 ingest_time <- system.time({
   result <- parquet_data %>%
-    select(subject_id, hadm_id, itemid, charttime, value) %>%
+    # Select only necessary columns
+    select(subject_id, itemid, charttime, valuenum) %>%
+    # Filter specific item IDs
     filter(itemid %in% c(50912, 50971, 50983, 50902, 
                          50882, 51221, 51301, 50931)) %>%  
-    collect()                   
+    collect()#Bring the filtered results into memory as a tibble                   
 })
 
 cat("Time taken for ingestion, selection, and filtering:", 
@@ -396,8 +422,9 @@ cat("Time taken for ingestion, selection, and filtering:",
 # 3. Display the number of rows and the first 10 rows
 cat("Number of rows in result:", nrow(result), "\n")
 head(result, 10)
-
 ```
+
+Parquet makes storing data faster and more efficient, especially for large datasets. Imagine you have a huge spreadsheet, but you only need a few columns instead of the entire file. Parquet does not read data line by line like traditional files such as CSV, but organizes data by column. This means that if you only need one column, it can quickly grab that part without loading everything else - it's a bit like searching for a book in a well-organized library instead of searching through a pile of messy files. It saves storage space and makes data analysis faster! Arrow is primarily an efficient in memory data format designed to accelerate tasks such as data analysis, machine learning, and database queries. Arrow enables data to be stored in RAM in an efficient format, avoiding repeated format conversions and improving query speed. Different languages can directly share data without conversion, with zero copy, greatly improving computational efficiency. Support for vectorized computing: Arrow enables CPU to process data in parallel, faster than traditional methods.
 
 ### Q2.6 DuckDB
 
@@ -407,10 +434,6 @@ head(result, 10)
 
 Ingest the Parquet file, convert it to a DuckDB table by [`arrow::to_duckdb`](https://arrow.apache.org/docs/r/reference/to_duckdb.html), select columns, and filter rows as in Q2.5. How long does the ingest+convert+select+filter process take? Display the number of rows and the first 10 rows of the result tibble and make sure they match those in Q2.3. (Hint: use `dplyr` verbs for selecting columns and filtering rows.)
 
-------------------------------------------------------------------------
-
-Solution:
-
 Write a few sentences to explain what is DuckDB. Imagine you want to explain it to a layman in an elevator.
 
 ------------------------------------------------------------------------
@@ -418,39 +441,56 @@ Write a few sentences to explain what is DuckDB. Imagine you want to explain it 
 Solution:
 
 ```{r}
+# Start timer
 start_time <- Sys.time()
 
-# Open the Parquet file
-labevents_parquet <- read_parquet("~/biostat-203b-2025-winter/hw2/labevents_parquet/part-0.parquet")
+# 1. Open the Parquet dataset
+parquet_data <- open_dataset(
+  "~/biostat-203b-2025-winter/hw2/labevents_parquet",
+  format = "parquet"
+)
 
-# Convert to DuckDB
-con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
-labevents_duckdb <- to_duckdb(con, labevents_parquet, table_name = "labevents")
-
-# Select and filter as in Q2.5
-labevents_filtered_duckdb <- tbl(con, "labevents") %>%
+# 2. Convert to a DuckDB table
+con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")  
+duckdb_table <- to_duckdb(parquet_data, 
+                          con = con, table_name = "labevents_duckdb")
+# 3. Perform selection, filtering, and enforce sorting
+result <- tbl(con, "labevents_duckdb") %>%
   select(subject_id, itemid, charttime, valuenum) %>%
-  filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) %>%
-  collect()  # Convert to an in-memory tibble
+  filter(itemid %in% c(50912, 50971, 50983, 50902, 
+                       50882, 51221, 51301, 50931)) %>%  
+  arrange(subject_id, charttime) %>%  # Explicitly sort by subject_id & time
+  mutate(
+    subject_id = as.integer(subject_id), 
+    itemid = as.integer(itemid),          
+    charttime = as.POSIXct(charttime)     
+  ) %>%
+  collect()#Bring the filtered results into memory as a tibble
 
+# Stop timer
 end_time <- Sys.time()
 elapsed_time <- difftime(end_time, start_time, units = "secs")
 
-cat("Time taken for ingest, convert, select, and filter:", round(elapsed_time, 2), "seconds\n")
+# 4. Display processing time
+cat("Ingest+convert+select+filter process took:", 
+    round(elapsed_time, 2), "seconds\n")
 
-cat("Number of rows in filtered dataset:", nrow(labevents_filtered_duckdb), "\n")
+# 5. Display number of rows and the first 10 rows
+cat("Number of rows in result:", nrow(result), "\n")
+print(head(result, 10))
 
-print(head(labevents_filtered_duckdb, 10))
-
-dbDisconnect(con)
-
+# Disconnect from DuckDB
+dbDisconnect(con, shutdown = TRUE)
 ```
+
+Imagine you have a bunch of files, and every time you need to find something, you have to flip through them one by one - this is how traditional databases work. On the other hand\*\* DuckDB \* \* is like having a super fast librarian who will immediately give you what you need. It is designed for lightning fast data analysis, especially for large datasets, without the hassle of setting up a large database server. You can run it directly on your laptop, just like opening a spreadsheet, but its working speed is comparable to modern data tools. It's like giving your data a \* \* turbocharger \* \*, making complex queries feel as simple as Google search!
 
 ## Q3. Ingest and filter `chartevents.csv.gz`
 
 [`chartevents.csv.gz`](https://mimic.mit.edu/docs/iv/modules/icu/chartevents/) contains all the charted data available for a patient. During their ICU stay, the primary repository of a patient’s information is their electronic chart. The `itemid` variable indicates a single measurement type in the database. The `value` variable is the value measured for `itemid`. The first 10 lines of `chartevents.csv.gz` are
 
 ```{bash}
+#| eval: false
 zcat < ~/mimic/icu/chartevents.csv.gz | head -10
 ```
 
@@ -473,23 +513,21 @@ Document the steps and show code. Display the number of rows and the first 10 ro
 
 ------------------------------------------------------------------------
 
-Solution:
+Solution: Using the Apache Arrow
 
 ```{r}
 # Define file paths
 chartevents_path <- "~/mimic/icu/chartevents.csv.gz"
-parquet_path <- "~/mimic/icu/chartevents_vitals.parquet"
+parquet_path <- "~/biostat-203b-2025-winter/hw2/chartevents_vitals.parquet"  
 
 # Start timing
 start_time <- Sys.time()
 
-#use arrow::open_dataset() to read the compressed CSV without fully loading it into memory.
-
 # Load and filter using Apache Arrow
 chartevents_vitals <- open_dataset(chartevents_path, format = "csv") %>%
-  select(subject_id, itemid, charttime, value) %>%
+  select(subject_id, itemid, charttime,valuenum) %>%
   filter(itemid %in% c(220045, 220181, 220179, 223761, 220210)) %>%
-  collect()  # Convert to an in-memory tibble
+  collect()  # Convert to in-memory tibble
 
 # Save as Parquet for faster access in future
 write_parquet(chartevents_vitals, parquet_path)
@@ -499,12 +537,13 @@ end_time <- Sys.time()
 elapsed_time <- difftime(end_time, start_time, units = "secs")
 
 # Display processing time
-cat("Time taken for filtering and saving:", round(elapsed_time, 2), "seconds\n")
+cat("Time taken for filtering and saving:", 
+    round(elapsed_time, 2), "seconds\n")
 
 # Display number of rows in the filtered dataset
-cat("Number of rows in filtered dataset:", nrow(chartevents_vitals), "\n")
+cat("Number of rows in filtered dataset:", 
+    nrow(chartevents_vitals), "\n")
 
-#Display first 10 rows
+# Display first 10 rows
 print(head(chartevents_vitals, 10))
-
 ```
