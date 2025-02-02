@@ -3,21 +3,23 @@ title: "Biostat 203B Homework 2"
 subtitle: Due Feb 7, 2025 @ 11:59PM
 author: "Wenqiang Ge UID:106371961"
 format:
-  pdf:
-    documentclass: article
-    toc: true
-    toc-depth: 2
-    keep-tex: true
-  # html:
-  #   theme: cosmo
-  #   embed-resources: true
-  #   number-sections: false
+  # pdf:
+  #   documentclass: article
   #   toc: true
-  #   toc-depth: 4
-  #   toc-location: left
-  #   code-fold: false
-  #   link-external-icon: true
-  #   link-external-newwindow: true
+  #   toc-depth: 2
+  #   keep-tex: true
+  #   number-sections: true
+  #   highlight-style: tango
+  html:
+    theme: cosmo
+    embed-resources: true
+    number-sections: false
+    toc: true
+    toc-depth: 4
+    toc-location: left
+    code-fold: false
+    link-external-icon: true
+    link-external-newwindow: true
 ---
 
 Display machine information for reproducibility:
@@ -276,7 +278,6 @@ Display the first 10 lines of the new file `labevents_filtered.csv.gz`. How many
 Solution:
 
 ```{bash}
-#| eval: false
 # Display the first 10 rows of the file after skipping the header
 zcat labevents_filtered.csv.gz | tail -n +2 | head -10
 
@@ -302,8 +303,6 @@ cat("Time taken to read labevents_filtered.csv.gz:",
       round(elapsed_time, 2), "seconds\n")
 
 ```
-
-There are 32679897 lines.
 
 ### Q2.4 Ingest `labevents.csv` by Apache Arrow
 
@@ -332,12 +331,11 @@ Write a few sentences to explain what is Apache Arrow. Imagine you want to expla
 Solution:
 
 ```{r}
-start_time <- Sys.time()
-
 # 1. Open the CSV dataset efficiently using Apache Arrow
-# Instead of reading the entire file into memory, Arrow allows for streaming
 labevents_ds <- open_dataset("~/biostat-203b-2025-winter/hw2/labevents.csv", 
                              format = "csv")
+
+start_time <- Sys.time()
 
 # 2. Perform selection and filtering using dplyr functions
 labevents_filtered_arrow <- labevents_ds %>%
@@ -349,6 +347,7 @@ labevents_filtered_arrow <- labevents_ds %>%
   collect()#Bring the filtered results into memory as a tibble
 
 end_time <- Sys.time()
+
 elapsed_time <- difftime(end_time, start_time, units = "secs")
 
 cat("Time taken for ingestion, selection, and filtering:", 
@@ -358,6 +357,9 @@ cat("Number of rows in filtered dataset:",
     nrow(labevents_filtered_arrow), "\n")
 
 print(head(labevents_filtered_arrow, 10))
+
+# Free up memory by removing the tibble
+rm(labevents_filtered_arrow)
 
 ```
 
@@ -391,11 +393,12 @@ write_dataset(
 ```
 
 ```{r}
-# Use the system command to check the size of the Parquet dataset
+# Use the system command to check the size of the Parquet dataset 
 parquet_size <- system(
-  "du -sh ~/biostat-203b-2025-winter/hw2/labevents_parquet/", 
-  intern = TRUE)
+  "du -sh ~/biostat-203b-2025-winter/hw2/labevents_parquet/",
+  intern = TRUE) 
 cat("Size of Parquet dataset:", parquet_size, "\n")
+rm(parquet_size)
 ```
 
 ```{r}
@@ -404,24 +407,35 @@ parquet_data <- open_dataset(
   "~/biostat-203b-2025-winter/hw2/labevents_parquet",
   format = "parquet"
 )
+```
+
+```{r}
+#| eval: false
+start_time <- Sys.time()
 
 # 2. Time the ingest+select+filter process
-ingest_time <- system.time({
-  result <- parquet_data %>%
-    # Select only necessary columns
-    select(subject_id, itemid, charttime, valuenum) %>%
-    # Filter specific item IDs
-    filter(itemid %in% c(50912, 50971, 50983, 50902, 
-                         50882, 51221, 51301, 50931)) %>%  
-    collect()#Bring the filtered results into memory as a tibble                   
-})
+result <- parquet_data %>%
+  # Select only necessary columns
+  select(subject_id, itemid, charttime, valuenum) %>%
+  # Filter specific item IDs
+  filter(itemid %in% c(50912, 50971, 50983, 50902, 
+                       50882, 51221, 51301, 50931)) %>%  
+  collect()#Bring the filtered results into memory as a tibble                   
+
+
+end_time <- Sys.time()
+
+elapsed_time <- difftime(end_time, start_time, units = "secs")
 
 cat("Time taken for ingestion, selection, and filtering:", 
-    ingest_time["elapsed"], "seconds\n")
+    round(elapsed_time, 2), "seconds\n")
 
 # 3. Display the number of rows and the first 10 rows
 cat("Number of rows in result:", nrow(result), "\n")
 head(result, 10)
+
+# Free up memory by removing the tibble
+rm(result)
 ```
 
 Parquet makes storing data faster and more efficient, especially for large datasets. Imagine you have a huge spreadsheet, but you only need a few columns instead of the entire file. Parquet does not read data line by line like traditional files such as CSV, but organizes data by column. This means that if you only need one column, it can quickly grab that part without loading everything else - it's a bit like searching for a book in a well-organized library instead of searching through a pile of messy files. It saves storage space and makes data analysis faster! Arrow is primarily an efficient in memory data format designed to accelerate tasks such as data analysis, machine learning, and database queries. Arrow enables data to be stored in RAM in an efficient format, avoiding repeated format conversions and improving query speed. Different languages can directly share data without conversion, with zero copy, greatly improving computational efficiency. Support for vectorized computing: Arrow enables CPU to process data in parallel, faster than traditional methods.
@@ -441,34 +455,42 @@ Write a few sentences to explain what is DuckDB. Imagine you want to explain it 
 Solution:
 
 ```{r}
-# Start timer
-start_time <- Sys.time()
-
 # 1. Open the Parquet dataset
 parquet_data <- open_dataset(
   "~/biostat-203b-2025-winter/hw2/labevents_parquet",
   format = "parquet"
 )
+```
 
+```{r}
 # 2. Convert to a DuckDB table
-con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")  
+con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:") 
 duckdb_table <- to_duckdb(parquet_data, 
                           con = con, table_name = "labevents_duckdb")
+```
+
+```{r}
+#| eval: false
+# Start timer
+start_time <- Sys.time()
+
 # 3. Perform selection, filtering, and enforce sorting
 result <- tbl(con, "labevents_duckdb") %>%
   select(subject_id, itemid, charttime, valuenum) %>%
   filter(itemid %in% c(50912, 50971, 50983, 50902, 
                        50882, 51221, 51301, 50931)) %>%  
-  arrange(subject_id, charttime) %>%  # Explicitly sort by subject_id & time
-  mutate(
-    subject_id = as.integer(subject_id), 
-    itemid = as.integer(itemid),          
-    charttime = as.POSIXct(charttime)     
-  ) %>%
-  collect()#Bring the filtered results into memory as a tibble
+  
+  # Explicitly sort by subject_id & time
+  arrange(subject_id, charttime) %>%  
+  #Bring the filtered results into memory as a tibble
+  collect()
 
 # Stop timer
 end_time <- Sys.time()
+```
+
+```{r}
+#| eval: false
 elapsed_time <- difftime(end_time, start_time, units = "secs")
 
 # 4. Display processing time
@@ -481,6 +503,9 @@ print(head(result, 10))
 
 # Disconnect from DuckDB
 dbDisconnect(con, shutdown = TRUE)
+
+# Free up memory by removing the tibble
+rm(result)
 ```
 
 Imagine you have a bunch of files, and every time you need to find something, you have to flip through them one by one - this is how traditional databases work. On the other hand\*\* DuckDB \* \* is like having a super fast librarian who will immediately give you what you need. It is designed for lightning fast data analysis, especially for large datasets, without the hassle of setting up a large database server. You can run it directly on your laptop, just like opening a spreadsheet, but its working speed is comparable to modern data tools. It's like giving your data a \* \* turbocharger \* \*, making complex queries feel as simple as Google search!
@@ -504,6 +529,7 @@ zcat < ~/mimic/icu/chartevents.csv.gz | tail -n +2 | wc -l
 [`d_items.csv.gz`](https://mimic.mit.edu/docs/iv/modules/icu/d_items/) is the dictionary for the `itemid` in `chartevents.csv.gz`.
 
 ```{bash}
+#| eval: false
 zcat < ~/mimic/icu/d_items.csv.gz | head -10
 ```
 
@@ -519,7 +545,9 @@ Solution: Using the Apache Arrow
 # Define file paths
 chartevents_path <- "~/mimic/icu/chartevents.csv.gz"
 parquet_path <- "~/biostat-203b-2025-winter/hw2/chartevents_vitals.parquet"  
+```
 
+```{r}
 # Start timing
 start_time <- Sys.time()
 
@@ -546,4 +574,7 @@ cat("Number of rows in filtered dataset:",
 
 # Display first 10 rows
 print(head(chartevents_vitals, 10))
+
+# Free up memory by removing the tibble
+rm(chartevents_vitals)
 ```
