@@ -363,7 +363,9 @@ cat("Time taken for ingestion, selection, and filtering:",
 cat("Number of rows in filtered dataset:", 
     nrow(labevents_filtered_arrow), "\n")
 
-print(head(labevents_filtered_arrow, 10))
+print(labevents_filtered_arrow %>%
+  arrange(subject_id, charttime) %>% 
+    head(10))
 
 # Free up memory by removing the tibble
 rm(labevents_ds,labevents_filtered_arrow)
@@ -439,7 +441,9 @@ rm(start_time,end_time,elapsed_time)
 
 # 3. Display the number of rows and the first 10 rows
 cat("Number of rows in result:", nrow(result), "\n")
-head(result, 10)
+print(result %>%
+  arrange(subject_id, charttime) %>% 
+    head(10))
 
 # Free up memory by removing the tibble
 rm(result)
@@ -514,9 +518,11 @@ rm(result)
 
 Chunks' results:
 
-![](images/clipboard-137005144.png)
+![](images/clipboard-137005144.png){width="608"}
 
-![](images/clipboard-3577046821.png)![](images/clipboard-4117485426.png)
+![](images/clipboard-3688384957.png){width="609"}
+
+![](images/clipboard-4117485426.png){width="557"}
 
 Imagine you have a bunch of files, and every time you need to find something, you have to flip through them one by one - this is how traditional databases work. On the other hand\*\* DuckDB \* \* is like having a super fast librarian who will immediately give you what you need. It is designed for lightning fast data analysis, especially for large datasets, without the hassle of setting up a large database server. You can run it directly on your laptop, just like opening a spreadsheet, but its working speed is comparable to modern data tools. It's like giving your data a \* \* turbocharger \* \*, making complex queries feel as simple as Google search!
 
