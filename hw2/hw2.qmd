@@ -3,23 +3,23 @@ title: "Biostat 203B Homework 2"
 subtitle: Due Feb 7, 2025 @ 11:59PM
 author: "Wenqiang Ge UID:106371961"
 format:
-  pdf:
-    documentclass: article
-    toc: true
-    toc-depth: 2
-    keep-tex: true
-    number-sections: true
-    highlight-style: tango
-  # html:
-  #   theme: cosmo
-  #   embed-resources: true
-  #   number-sections: false
+  # pdf:
+  #   documentclass: article
   #   toc: true
-  #   toc-depth: 4
-  #   toc-location: left
-  #   code-fold: false
-  #   link-external-icon: true
-  #   link-external-newwindow: true
+  #   toc-depth: 2
+  #   keep-tex: true
+  #   number-sections: true
+  #   highlight-style: tango
+  html:
+    theme: cosmo
+    embed-resources: true
+    number-sections: false
+    toc: true
+    toc-depth: 4
+    toc-location: left
+    code-fold: false
+    link-external-icon: true
+    link-external-newwindow: true
 ---
 
 Display machine information for reproducibility:
@@ -368,6 +368,7 @@ print(head(labevents_filtered_arrow, 10))
 # Free up memory by removing the tibble
 rm(labevents_ds,labevents_filtered_arrow)
 rm(start_time,end_time,elapsed_time)
+
 ```
 
 Apache Arrow is like a high-speed data train. The traditional way of processing large datasets is like moving boxes one after another, while Arrow loads the entire train carriage at once, making the processing speed very fast. It saves data in a format that can be efficiently read by multiple tools (R, Python, Spark) without the need for additional conversions. This means that you can quickly analyze large datasets without running out of memory. If you handle big data, Arrow is your secret weapon for improving speed and efficiency.
@@ -418,7 +419,6 @@ parquet_data <- open_dataset(
 ```
 
 ```{r}
-
 start_time <- Sys.time()
 # 2. Time the ingest+select+filter process
 result <- parquet_data %>%
@@ -462,10 +462,13 @@ Write a few sentences to explain what is DuckDB. Imagine you want to explain it 
 Solution:
 
 ```{r}
+#| eval: false
 # Convert to a DuckDB table
 con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:") 
-duckdb_table <- to_duckdb(parquet_data, 
-                          con = con, table_name = "labevents_duckdb")
+duckdb_table <- arrow::to_duckdb(parquet_data, 
+                                 con = con, 
+                                 table_name = "labevents_duckdb")
+
 ```
 
 ```{r}
@@ -508,6 +511,12 @@ dbDisconnect(con, shutdown = TRUE)
 # Free up memory by removing the tibble
 rm(result)
 ```
+
+Chunks' results:
+
+![](images/clipboard-137005144.png)
+
+![](images/clipboard-3577046821.png)![](images/clipboard-4117485426.png)
 
 Imagine you have a bunch of files, and every time you need to find something, you have to flip through them one by one - this is how traditional databases work. On the other hand\*\* DuckDB \* \* is like having a super fast librarian who will immediately give you what you need. It is designed for lightning fast data analysis, especially for large datasets, without the hassle of setting up a large database server. You can run it directly on your laptop, just like opening a spreadsheet, but its working speed is comparable to modern data tools. It's like giving your data a \* \* turbocharger \* \*, making complex queries feel as simple as Google search!
 
