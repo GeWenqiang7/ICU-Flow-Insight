@@ -558,9 +558,18 @@ Document the steps and show code. Display the number of rows and the first 10 ro
 Solution: Using the Apache Arrow
 
 ```{r}
-# Define file paths
-chartevents_path <- "~/mimic/icu/chartevents.csv.gz"
-parquet_path <- "~/biostat-203b-2025-winter/hw2/chartevents_vitals.parquet"  
+library(arrow)
+# 1. Open the CSV dataset using Apache Arrow
+labevents_csv <- open_dataset("~/mimic/icu/chartevents.csv.gz", 
+                              format = "csv")
+
+# 2. Write the dataset to Parquet format
+write_dataset(
+  labevents_csv,
+  path = "~/biostat-203b-2025-winter/hw2/chartevents_parquet",
+  format = "parquet",
+  compression = "snappy"
+)
 ```
 
 ```{r}
