@@ -44,6 +44,7 @@ library(dplyr)
 library(lubridate)
 library(readr)
 library(duckdb)
+library(DBI)
 ```
 
 Display your machine memory.
@@ -498,7 +499,82 @@ We are interested in the vitals for ICU patients: heart rate (220045), systolic 
 Solution:
 
 ```{r}
+# Connect to DuckDB
+con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:") 
 
+#  Load and filter only required `itemid` values (Reduce Memory Usage)
+dbExecute(con, "CREATE TABLE chartevents_duckdb AS 
+                SELECT subject_id, itemid, storetime, valuenum 
+                FROM read_parquet('~/biostat-203b-2025-winter/hw2/chartevents_parquet/part-0.parquet')
+                WHERE itemid IN (220045, 220179, 220180, 223761, 220210)")
+
+#  Load `icustays_tble` into DuckDB
+dbWriteTable(con, "icustays", result_icustays, overwrite = TRUE)
+```
+
+```{r}
+# Join with ICU patients and keep only first vital measurement within ICU stay
+dbExecute(con, "CREATE TABLE latest_vitals AS 
+                SELECT subject_id, stay_id, itemid, storetime, valuenum
+                FROM (
+                    SELECT c.subject_id, i.stay_id, c.itemid, c.storetime, c.valuenum,
+                           ROW_NUMBER() OVER (PARTITION BY c.subject_id, i.stay_id, c.itemid 
+                                              ORDER BY c.storetime ASC) AS rn
+                    FROM chartevents_duckdb c
+                    INNER JOIN icustays i 
+                    ON c.subject_id = i.subject_id
+                    WHERE c.storetime BETWEEN i.intime AND i.outtime
+                ) WHERE rn = 1")
+
+```
+
+```{r}
+#eval = False
+# Select the first measurement (`storetime`) per `itemid` and `stay_id`
+dbExecute(con, "CREATE TABLE latest_vitals_filtered AS 
+                SELECT subject_id, stay_id, itemid, valuenum
+                FROM (
+                    SELECT *, ROW_NUMBER() OVER (PARTITION BY subject_id, stay_id, itemid ORDER BY storetime ASC) AS rn
+                    FROM latest_vitals
+                ) WHERE rn = 1")
+
+```
+
+```{r}
+# Pivot `itemid` into separate columns (one row per ICU stay)
+latest_vitals <- dbGetQuery(con, "SELECT * FROM latest_vitals_filtered")
+
+chartevents_tble <- latest_vitals %>%
+  pivot_wider(names_from = itemid, values_from = valuenum)
+
+
+
+# Create a named vector mapping `itemid` to readable names
+itemid_mapping <- c(
+  "220045" = "heart_rate",
+  "220179" = "non-invasive_blood_pressure_systolic",
+  "220180" = "non-invasive_blood_pressure_diastolic",
+  "223761" = "temperature_fahrenheit",
+  "220210" = "respiratory_rate"
+)
+
+# Rename columns based on `itemid_mapping`
+colnames(chartevents_tble) <- c("subject_id", "stay_id", 
+                                itemid_mapping[colnames(chartevents_tble)[-(1:2)]]) 
+
+
+
+```
+
+```{r}
+# Arrange for better readability
+chartevents_tble <- chartevents_tble %>% arrange(subject_id, stay_id)
+
+# View the final dataset
+print(head(chartevents_tble, 10), width = Inf)
+
+# disconnect from DuckDB
+dbDisconnect(con, shutdown = TRUE)
 ```
 
 ## Q7. Putting things together
