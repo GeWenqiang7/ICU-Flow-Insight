@@ -43,6 +43,7 @@ library(ggplot2)
 library(dplyr)
 library(lubridate)
 library(readr)
+library(duckdb)
 ```
 
 Display your machine memory.
@@ -94,87 +95,6 @@ transfers_data <- transfers %>% filter(subject_id == patient_id)
 labevents_data <- labevents %>% filter(subject_id == patient_id)
 procedures_data <- procedures %>% filter(subject_id == patient_id)
 diagnoses_data <- diagnoses %>% filter(subject_id == patient_id)
-```
-
-```{r}
-#Convert timestamps and ensure correct date format
-if ("admittime" %in% colnames(admissions_data)) {
-  admissions_data <- admissions_data %>%
-    mutate(event_type = "ADT", event_time = as.Date(admittime))
-}
-
-if ("chartdate" %in% colnames(procedures_data)) {
-  procedures_data <- procedures_data %>%
-    mutate(event_type = "Procedure", event_time = as.Date(chartdate))
-}
-
-if ("charttime" %in% colnames(labevents_data)) {
-  labevents_data <- labevents_data %>%
-    mutate(event_type = "Lab", event_time = as.Date(charttime))
-}
-```
-
-```{r}
-#eval=FALSE
-# Ensure labevents_data is fully materialized from Arrow
-if (inherits(labevents_data, "arrow_dplyr_query")) {
-  labevents_data <- collect(labevents_data)  # Convert from Arrow to Data Frame
-}
-
-# Check for missing charttime and convert properly
-if ("charttime" %in% colnames(labevents_data)) {
-  labevents_data <- labevents_data %>%
-    mutate(
-      charttime = ifelse(is.na(charttime), NA, as.character(charttime)),  # Convert to character first
-      charttime = as.Date(charttime)  # Convert to Date format
-    ) %>%
-    mutate(event_type = "Lab", event_time = charttime)
-} else {
-  print("Warning: 'charttime' column missing in labevents_data!")
-  labevents_data <- data.frame(event_time = as.Date(character()), event_type = character())
-}
-
-# Check if labevents_data is empty and replace it if necessary
-if (nrow(labevents_data) == 0) {
-  print("Warning: labevents_data is empty!")
-  labevents_data <- data.frame(event_time = as.Date(character()), event_type = character())
-}
-
-timeline_data <- bind_rows(admissions_data, labevents_data, procedures_data) %>%
-  arrange(event_time)
-
-```
-
-```{r}
-#eval=FALSE
-# Define custom colors for care units
-care_unit_colors <- c(
-  "Emergency Department" = "red",
-  "Medicine" = "green",
-  "Neurology" = "blue",
-  "Surgical Intensive Care Unit (SICU)" = "purple"
-)
-
-# Define custom shapes for procedures
-procedure_shapes <- c(
-  "Central venous catheter" = 16,  # Filled Circle ●
-  "Other incision of brain" = 17,  # Triangle ▲
-  "Spinal tap" = 15   # Square ■
-)
-
-# Ensure data is properly formatted before plotting
-timeline_data <- timeline_data %>%
-  filter(!is.na(event_time))  # Remove NA dates
-
-# Extract patient demographic details for the plot title
-patient_info <- paste(
-  "Patient", patient_id, ",",
-  patient_data$gender, patient_data$anchor_age, "years old,", patient_data$race
-)
-
-# Extract top 3 diagnoses for the subtitle
-top_diagnoses <- paste(diagnoses_data$icd_description[1:3], collapse = ", ")
-
 ```
 
 ### Q1.2 ICU stays
@@ -246,6 +166,7 @@ p <- ggplot(icu_stays_per_subject, aes(x = num_stays)) +
 # Convert to an interactive plot
 ggplotly(p)
 
+rm(num_unique_subjects)
 ```
 
 The histogram shows the distribution of ICU stays per subject (patient). Most subjects have only one ICU stay, with a sharp drop-off as the number of stays increases. The majority of patients (49,124 subjects) had a single ICU stay, while a much smaller proportion experienced multiple ICU stays. This suggests that repeated ICU admissions are uncommon, but some patients do return multiple times, possibly due to chronic conditions, post-surgical complications, or severe illnesses requiring multiple admissions. The long tail of the distribution indicates that a few patients had 10 or more ICU stays, though these cases are rare.
@@ -307,6 +228,7 @@ p <- ggplot(admissions_per_patient, aes(x = num_admissions)) +
 # Convert to an interactive plot
 ggplotly(p)
 
+rm(admissions_per_patient)
 ```
 
 Most patients have only one or very few admissions, while very few patients have a large number of admissions. A small number of patients have multiple hospitalizations, but the frequency drops quickly as the number of admissions increases. Patients with 10+ admissions are very rare. The distribution is heavily right-skewed, with very few patients experiencing more than 5 hospital stays. This means that most patients have a low number of admissions, and a small subset of patients has a significantly higher number. Also, Most hospital patients are one-time visitors, while a minority (likely with chronic illnesses or complications) are readmitted multiple times.
@@ -425,6 +347,7 @@ p_gender <- ggplot(gender_dist, aes(x = gender, y = n, fill = gender)) +
 # Convert to interactive plot
 ggplotly(p_gender)
 
+rm(gender_dist)
 ```
 
 The bar chart indicates that there are more female (F) patients than male (M) patients in the dataset. The difference is noticeable but not extreme, suggesting a slight gender imbalance in hospital admissions. This could be influenced by factors such as longer life expectancy in females, higher healthcare utilization rates among women, or specific hospital demographics.
@@ -440,6 +363,7 @@ p_age <- ggplot(patients_tble, aes(x = anchor_age)) +
 
 # Convert to interactive plot
 ggplotly(p_age)
+
 ```
 
 The histogram of anchor_age shows a bimodal distribution, with a large concentration of patients in the 20–30 age range and another broader peak between 50–70 years old. The younger peak could represent a large number of maternity-related or younger adult admissions, while the older peak likely reflects age-related chronic conditions and elderly care. The drop-off after 80 years suggests a lower number of very elderly patients, possibly due to lower life expectancy or selection bias in hospital records.
@@ -472,52 +396,83 @@ Solution:
 # Load lab events dataset from Parquet (keeping it in Arrow format)
 labevents_table <- open_dataset("~/biostat-203b-2025-winter/hw3/labevents_pq", format = "parquet")
 
-# Load ICU stays dataset (keeping in Arrow format)
-icustays_tble <- read_csv("~/mimic/icu/icustays.csv.gz", 
-                          col_types = cols(subject_id = col_double(), 
-                                           stay_id = col_double(),
-                                           intime = col_datetime(format="%Y-%m-%d %H:%M:%S")))
+con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:") 
+duckdb_table <- arrow::to_duckdb(labevents_table, 
+                                 con = con, 
+                                 table_name = "labevents_duckdb")
 
-# Define the required lab test IDs
-lab_items <- c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)
+result_labevents <- tbl(con, "labevents_duckdb") %>%
+  select(subject_id, itemid, storetime,itemid, valuenum) %>%
+  filter(itemid %in% c(50912, 50971, 50983, 50902, 
+                       50882, 51221, 51301, 50931)) %>%
+  #Bring the filtered results into memory as a tibble
+  collect()
+```
+
+```{r}
+#Connect to DuckDB
+con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+
+# Load ICU stays dataset from CSV into DuckDB
+duckdb_table_icustays <- tbl(con, sql("SELECT * FROM read_csv_auto('~/mimic/icu/icustays.csv.gz')"))
+
+# Query ICU stays dataset within DuckDB
+result_icustays <- duckdb_table_icustays %>%
+  select(subject_id, stay_id, intime,outtime) %>%  # Select necessary columns
+  collect()  # Bring the filtered results into memory as a tibble
+
+# View the first few rows
+head(result_icustays)
+
+# Disconnect from DuckDB
+dbDisconnect(con, shutdown = TRUE)
 
 ```
 
 ```{r}
-# Step 1: Filter lab events for selected items
-filtered_labs <- labevents_table %>%
-  filter(itemid %in% lab_items)
+# Merge `result_icustays` with `result_labevents` on `subject_id` and `stay_id`
+merged_data <- result_labevents %>%
+  inner_join(result_icustays, by = c("subject_id")) %>%
+  filter(storetime < intime) %>%  # Ensure storetime is earlier than ICU admission
+  select(subject_id, stay_id, itemid, storetime, valuenum) 
 
-# Step 2: Merge with ICU stays to retain only relevant patients
-filtered_labs <- filtered_labs %>%
-  inner_join(icustays_tble, by = "subject_id") %>%
-  filter(charttime < intime)  # Keep only lab measurements before ICU admission
-
-# Step 3: Compute latest `charttime` per subject, stay, and itemid
-latest_times <- filtered_labs %>%
+# Select the latest (`storetime`) measurement per `itemid` before ICU stay
+latest_labs <- merged_data %>%
   group_by(subject_id, stay_id, itemid) %>%
-  summarise(last_charttime = max(charttime), .groups = "drop")  # Get latest charttime
+  slice_max(order_by = storetime, n = 1, with_ties = FALSE) %>%  # Keep only the most recent lab result
+  ungroup()
 
-# Step 4: Join back with filtered_labs to get the corresponding values
-latest_labs <- filtered_labs %>%
-  inner_join(latest_times, by = c("subject_id", "stay_id", "itemid", "charttime" = "last_charttime"))
 
-# Step 5: Collect only the final summarized dataset (reduces memory usage)
-latest_labs <- latest_labs %>% collect()
+rm(merged_data)
+```
 
-# Step 6: Reshape data to have one row per ICU stay (spread itemid into columns)
-final_labevents <- latest_labs %>%
-  select(subject_id, stay_id, itemid, value) %>%
-  pivot_wider(names_from = itemid, values_from = value)
+```{r}
+# Remove `storetime` before pivoting
+latest_labs1 <- latest_labs %>%
+  select(-storetime)  # Remove storetime before pivot_wider()
 
-# Rename columns for readability
-colnames(final_labevents) <- c("subject_id", "stay_id", 
-                               "creatinine", "potassium", "sodium", 
-                               "chloride", "bicarbonate", "hematocrit", 
-                               "wbc", "glucose")
+# Step 3: Ensure there are no duplicate rows per (`subject_id, stay_id, itemid`)
+latest_labs <- latest_labs1 %>%
+  distinct(subject_id, stay_id, itemid, .keep_all = TRUE)
 
-# View final dataset
-head(final_labevents)
+rm(latest_labs1)
+```
+
+```{r}
+# Pivot `itemid` to become separate columns with the most recent `valuenum`
+labevents_tble <- latest_labs %>%
+  pivot_wider(names_from = itemid, values_from = valuenum)
+
+# Rename columns for clarity
+colnames(labevents_tble) <- c("subject_id", "stay_id", "bicarbonate",
+                          "chloride","creatinine", "glucose",
+                          "potassium", "sodium", "hematocrit", "wbc")
+# group by readability
+labevents_tble <- labevents_tble %>% arrange(subject_id, stay_id)
+
+# View the final dataset
+print(head(labevents_tble, 10), width = Inf)
+
 ```
 
 ## Q6. Vitals from charted events
@@ -536,64 +491,13 @@ zcat < ~/mimic/icu/d_items.csv.gz | head
 
 We are interested in the vitals for ICU patients: heart rate (220045), systolic non-invasive blood pressure (220179), diastolic non-invasive blood pressure (220180), body temperature in Fahrenheit (223761), and respiratory rate (220210). Retrieve a subset of `chartevents.csv.gz` only containing these items for the patients in `icustays_tble`. Further restrict to the first vital measurement within the ICU stay. The final `chartevents_tble` should have one row per ICU stay and columns for each vital measurement.
 
-![](images/chartevents_tble.png)
-
-Hint: Use the Parquet format you generated in Homework 2. For reproducibility, make `chartevents_pq` folder available at the current working directory, for example, by a symbolic link.
+![](images/clipboard-3810019433.png)Hint: Use the Parquet format you generated in Homework 2. For reproducibility, make `chartevents_pq` folder available at the current working directory, for example, by a symbolic link.
 
 ------------------------------------------------------------------------
 
 Solution:
 
 ```{r}
-# Load chartevents dataset from Parquet (using the linked directory)
-chartevents_table <- open_dataset("~/biostat-203b-2025-winter/hw3/chartevents_pq", format = "parquet")
-
-# Load ICU stays dataset (from CSV)
-icustays_tble <- read_csv("~/mimic/icu/icustays.csv.gz",
-                          col_types = cols(subject_id = col_double(), 
-                                           stay_id = col_double(),
-                                           intime = col_datetime(format="%Y-%m-%d %H:%M:%S")))
-
-# Define the required vital sign item IDs
-vital_items <- c(220045, 220179, 220180, 223761, 220210)
-
-# Step 1: Filter chartevents to include only selected vital signs
-filtered_vitals <- chartevents_table %>%
-  filter(itemid %in% vital_items)
-
-# Step 2: Merge with ICU stays to keep only relevant patients
-filtered_vitals <- filtered_vitals %>%
-  inner_join(icustays_tble, by = "subject_id") %>%
-  filter(charttime >= intime)  # Keep only vitals recorded during ICU stay
-
-# Step 3: Select the first recorded vital measurement per ICU stay
-first_vitals <- filtered_vitals %>%
-  group_by(subject_id, stay_id, itemid) %>%
-  summarise(first_charttime = min(charttime), .groups = "drop")  # Get earliest charttime
-
-```
-
-```{r}
-
-# Step 4: Join back with filtered_vitals to get the corresponding values
-first_vitals <- filtered_vitals %>%
-  inner_join(first_vitals, by = c("subject_id", "stay_id", "itemid", "charttime" = "first_charttime"))
-
-# Step 5: Collect only the final summarized dataset (reduces memory usage)
-first_vitals <- first_vitals %>% collect()
-
-# Step 6: Reshape data to have one row per ICU stay (spread itemid into columns)
-final_vitals <- first_vitals %>%
-  select(subject_id, stay_id, itemid, value) %>%
-  pivot_wider(names_from = itemid, values_from = value)
-
-# Rename columns for readability
-colnames(final_vitals) <- c("subject_id", "stay_id", 
-                            "heart_rate", "sys_bp", "dia_bp", 
-                            "temperature_f", "respiratory_rate")
-
-# View final dataset
-head(final_vitals)
 
 ```
 
