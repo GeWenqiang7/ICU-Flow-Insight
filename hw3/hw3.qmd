@@ -464,6 +464,62 @@ We are interested in the lab measurements of creatinine (50912), potassium (5097
 
 Hint: Use the Parquet format you generated in Homework 2. For reproducibility, make `labevents_pq` folder available at the current working directory `hw3`, for example, by a symbolic link.
 
+------------------------------------------------------------------------
+
+Solution:
+
+```{r}
+# Load lab events dataset from Parquet (keeping it in Arrow format)
+labevents_table <- open_dataset("~/biostat-203b-2025-winter/hw3/labevents_pq", format = "parquet")
+
+# Load ICU stays dataset (keeping in Arrow format)
+icustays_tble <- read_csv("~/mimic/icu/icustays.csv.gz", 
+                          col_types = cols(subject_id = col_double(), 
+                                           stay_id = col_double(),
+                                           intime = col_datetime(format="%Y-%m-%d %H:%M:%S")))
+
+# Define the required lab test IDs
+lab_items <- c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)
+
+```
+
+```{r}
+# Step 1: Filter lab events for selected items
+filtered_labs <- labevents_table %>%
+  filter(itemid %in% lab_items)
+
+# Step 2: Merge with ICU stays to retain only relevant patients
+filtered_labs <- filtered_labs %>%
+  inner_join(icustays_tble, by = "subject_id") %>%
+  filter(charttime < intime)  # Keep only lab measurements before ICU admission
+
+# Step 3: Compute latest `charttime` per subject, stay, and itemid
+latest_times <- filtered_labs %>%
+  group_by(subject_id, stay_id, itemid) %>%
+  summarise(last_charttime = max(charttime), .groups = "drop")  # Get latest charttime
+
+# Step 4: Join back with filtered_labs to get the corresponding values
+latest_labs <- filtered_labs %>%
+  inner_join(latest_times, by = c("subject_id", "stay_id", "itemid", "charttime" = "last_charttime"))
+
+# Step 5: Collect only the final summarized dataset (reduces memory usage)
+latest_labs <- latest_labs %>% collect()
+
+# Step 6: Reshape data to have one row per ICU stay (spread itemid into columns)
+final_labevents <- latest_labs %>%
+  select(subject_id, stay_id, itemid, value) %>%
+  pivot_wider(names_from = itemid, values_from = value)
+
+# Rename columns for readability
+colnames(final_labevents) <- c("subject_id", "stay_id", 
+                               "creatinine", "potassium", "sodium", 
+                               "chloride", "bicarbonate", "hematocrit", 
+                               "wbc", "glucose")
+
+# View final dataset
+head(final_labevents)
+```
+
 ## Q6. Vitals from charted events
 
 `chartevents.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/icu/chartevents/>) contains all the charted data available for a patient. During their ICU stay, the primary repository of a patient’s information is their electronic chart. The `itemid` variable indicates a single measurement type in the database. The `value` variable is the value measured for `itemid`. The first 10 lines of `chartevents.csv.gz` are
@@ -484,6 +540,63 @@ We are interested in the vitals for ICU patients: heart rate (220045), systolic 
 
 Hint: Use the Parquet format you generated in Homework 2. For reproducibility, make `chartevents_pq` folder available at the current working directory, for example, by a symbolic link.
 
+------------------------------------------------------------------------
+
+Solution:
+
+```{r}
+# Load chartevents dataset from Parquet (using the linked directory)
+chartevents_table <- open_dataset("~/biostat-203b-2025-winter/hw3/chartevents_pq", format = "parquet")
+
+# Load ICU stays dataset (from CSV)
+icustays_tble <- read_csv("~/mimic/icu/icustays.csv.gz",
+                          col_types = cols(subject_id = col_double(), 
+                                           stay_id = col_double(),
+                                           intime = col_datetime(format="%Y-%m-%d %H:%M:%S")))
+
+# Define the required vital sign item IDs
+vital_items <- c(220045, 220179, 220180, 223761, 220210)
+
+# Step 1: Filter chartevents to include only selected vital signs
+filtered_vitals <- chartevents_table %>%
+  filter(itemid %in% vital_items)
+
+# Step 2: Merge with ICU stays to keep only relevant patients
+filtered_vitals <- filtered_vitals %>%
+  inner_join(icustays_tble, by = "subject_id") %>%
+  filter(charttime >= intime)  # Keep only vitals recorded during ICU stay
+
+# Step 3: Select the first recorded vital measurement per ICU stay
+first_vitals <- filtered_vitals %>%
+  group_by(subject_id, stay_id, itemid) %>%
+  summarise(first_charttime = min(charttime), .groups = "drop")  # Get earliest charttime
+
+```
+
+```{r}
+
+# Step 4: Join back with filtered_vitals to get the corresponding values
+first_vitals <- filtered_vitals %>%
+  inner_join(first_vitals, by = c("subject_id", "stay_id", "itemid", "charttime" = "first_charttime"))
+
+# Step 5: Collect only the final summarized dataset (reduces memory usage)
+first_vitals <- first_vitals %>% collect()
+
+# Step 6: Reshape data to have one row per ICU stay (spread itemid into columns)
+final_vitals <- first_vitals %>%
+  select(subject_id, stay_id, itemid, value) %>%
+  pivot_wider(names_from = itemid, values_from = value)
+
+# Rename columns for readability
+colnames(final_vitals) <- c("subject_id", "stay_id", 
+                            "heart_rate", "sys_bp", "dia_bp", 
+                            "temperature_f", "respiratory_rate")
+
+# View final dataset
+head(final_vitals)
+
+```
+
 ## Q7. Putting things together
 
 Let us create a tibble `mimic_icu_cohort` for all ICU stays, where rows are all ICU stays of adults (age at `intime` \>= 18) and columns contain at least following variables
@@ -497,6 +610,14 @@ Let us create a tibble `mimic_icu_cohort` for all ICU stays, where rows are all 
 The final `mimic_icu_cohort` should have one row per ICU stay and columns for each variable.
 
 ![](images/mimic_icu_cohort.png)
+
+------------------------------------------------------------------------
+
+Solution:
+
+```{r}
+
+```
 
 ## Q8. Exploratory data analysis (EDA)
 
