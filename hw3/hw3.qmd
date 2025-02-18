@@ -402,87 +402,70 @@ Hint: Use the Parquet format you generated in Homework 2. For reproducibility, m
 
 Solution:
 
-```{r Q5}
-# Load lab events dataset from Parquet (keeping it in Arrow format)
-labevents_table <- open_dataset("~/biostat-203b-2025-winter/hw3/labevents_parquet", format = "parquet")
-
-con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:") 
-duckdb_table <- arrow::to_duckdb(labevents_table, 
-                                 con = con, 
-                                 table_name = "labevents_duckdb")
-
-result_labevents <- tbl(con, "labevents_duckdb") %>%
-  select(subject_id, itemid, storetime,itemid, valuenum) %>%
-  filter(itemid %in% c(50912, 50971, 50983, 50902, 
-                       50882, 51221, 51301, 50931)) %>%
-  #Bring the filtered results into memory as a tibble
-  collect()
-```
-
-```{r c5.1}
-#Connect to DuckDB
+```{r}
+# Connect to DuckDB
 con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
 
-# Load ICU stays dataset from CSV into DuckDB
-duckdb_table_icustays <- tbl(con, sql("SELECT * FROM read_csv_auto('~/mimic/icu/icustays.csv.gz')"))
+# Load and filter lab events directly in DuckDB
+dbExecute(con, "CREATE TABLE filtered_labevents AS 
+                SELECT subject_id, itemid, storetime, valuenum
+                FROM read_parquet('~/biostat-203b-2025-winter/hw3/labevents_parquet/part-0.parquet')
+                WHERE itemid IN (50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)")
 
-# Query ICU stays dataset within DuckDB
-result_icustays <- duckdb_table_icustays %>%
-  select(subject_id, stay_id, intime,outtime) %>%  # Select necessary columns
-  collect()  # Bring the filtered results into memory as a tibble
+```
 
-# View the first few rows
-head(result_icustays)
+```{r}
+#  Load ICU stays dataset from CSV and store it in DuckDB
+dbExecute(con, "CREATE TABLE icustays AS 
+                SELECT subject_id, stay_id, intime, outtime 
+                FROM read_csv_auto('~/mimic/icu/icustays.csv.gz')")
+
+# Join lab events with ICU stays and filter by time condition
+dbExecute(con, "CREATE TABLE merged_labevents AS 
+                SELECT l.subject_id, i.stay_id, l.itemid, l.storetime, l.valuenum
+                FROM filtered_labevents l
+                INNER JOIN icustays i ON l.subject_id = i.subject_id
+                WHERE l.storetime < i.intime")
+```
+
+```{r}
+# Select the most recent lab measurement per `itemid` before ICU admission
+dbExecute(con, "CREATE TABLE latest_labs AS 
+                SELECT subject_id, stay_id, itemid, storetime, valuenum
+                FROM (
+                    SELECT *, ROW_NUMBER() OVER (PARTITION BY subject_id, stay_id, itemid ORDER BY storetime DESC) AS rn
+                    FROM merged_labevents
+                ) WHERE rn = 1")
+```
+
+```{r}
+# Pivot `itemid` to become separate columns
+dbExecute(con, "CREATE TABLE labevents_pivoted AS 
+                SELECT subject_id, stay_id,
+                       MAX(CASE WHEN itemid = 50882 THEN valuenum END) AS bicarbonate,
+                       MAX(CASE WHEN itemid = 50902 THEN valuenum END) AS chloride,
+                       MAX(CASE WHEN itemid = 50912 THEN valuenum END) AS creatinine,
+                       MAX(CASE WHEN itemid = 50931 THEN valuenum END) AS glucose,
+                       MAX(CASE WHEN itemid = 50971 THEN valuenum END) AS potassium,
+                       MAX(CASE WHEN itemid = 50983 THEN valuenum END) AS sodium,
+                       MAX(CASE WHEN itemid = 51221 THEN valuenum END) AS hematocrit,
+                       MAX(CASE WHEN itemid = 51301 THEN valuenum END) AS wbc
+                FROM latest_labs
+                GROUP BY subject_id, stay_id")
+
+# Fetch the final processed table into R
+labevents_tble <- dbGetQuery(con, "SELECT * FROM labevents_pivoted")
+
+# Arrange for better readability
+labevents_tble <- labevents_tble %>% arrange(subject_id, stay_id)
+
+# View final dataset
+print(head(labevents_tble, 10), width = 250)
 
 # Disconnect from DuckDB
 dbDisconnect(con, shutdown = TRUE)
 
-```
-
-```{r 5.2}
-# Merge `result_icustays` with `result_labevents` on `subject_id` and `stay_id`
-merged_data <- result_labevents %>%
-  inner_join(result_icustays, by = c("subject_id")) %>%
-  filter(storetime < intime) %>%  # Ensure storetime is earlier than ICU admission
-  select(subject_id, stay_id, itemid, storetime, valuenum) 
-
-# Select the latest (`storetime`) measurement per `itemid` before ICU stay
-latest_labs <- merged_data %>%
-  group_by(subject_id, stay_id, itemid) %>%
-  slice_max(order_by = storetime, n = 1, with_ties = FALSE) %>%  # Keep only the most recent lab result
-  ungroup()
-
-rm(merged_data)
-```
-
-```{r 5.3}
-# Remove `storetime` before pivoting
-latest_labs1 <- latest_labs %>%
-  select(-storetime)  # Remove storetime before pivot_wider()
-
-# Step 3: Ensure there are no duplicate rows per (`subject_id, stay_id, itemid`)
-latest_labs <- latest_labs1 %>%
-  distinct(subject_id, stay_id, itemid, .keep_all = TRUE)
-
-rm(latest_labs1)
-```
-
-```{r 5.4}
-# Pivot `itemid` to become separate columns with the most recent `valuenum`
-labevents_tble <- latest_labs %>%
-  pivot_wider(names_from = itemid, values_from = valuenum)
-
-# Rename columns for clarity
-colnames(labevents_tble) <- c("subject_id", "stay_id", "bicarbonate",
-                          "chloride","creatinine", "glucose",
-                          "potassium", "sodium", "hematocrit", "wbc")
-# group by readability
-labevents_tble <- labevents_tble %>% arrange(subject_id, stay_id)
-
-# View the final dataset
-print(head(labevents_tble, 10), width = Inf)
-
-rm(latest_labs)
+rm(con)
 ```
 
 ## Q6. Vitals from charted events
@@ -508,9 +491,21 @@ We are interested in the vitals for ICU patients: heart rate (220045), systolic 
 ------------------------------------------------------------------------
 
 Solution:
+```{r 6.1pre}
+#Connect to DuckDB
+con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+
+# Load ICU stays dataset from CSV into DuckDB
+duckdb_table_icustays <- tbl(con, sql("SELECT * FROM read_csv_auto('~/mimic/icu/icustays.csv.gz')"))
+
+# Query ICU stays dataset within DuckDB
+result_icustays <- duckdb_table_icustays %>%
+  select(subject_id, stay_id, intime,outtime) %>%  # Select necessary columns
+  collect()  # Bring the filtered results into memory as a tibble
+```
+
 
 ```{r 6.1}
-#| eval: false
 # Connect to DuckDB
 con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:") 
 
@@ -524,8 +519,7 @@ dbExecute(con, "CREATE TABLE chartevents_duckdb AS
 dbWriteTable(con, "icustays", result_icustays, overwrite = TRUE)
 ```
 
-```{r}
-#| eval: false
+```{r 6.2}
 # Filter the measurements in between the icu time
 dbExecute(con, "CREATE TABLE latest_vitals_raw AS 
                 SELECT c.subject_id, i.stay_id, c.itemid, c.storetime, c.valuenum
@@ -537,7 +531,7 @@ dbExecute(con, "CREATE TABLE latest_vitals_raw AS
 
 ```
 
-```{r}
+```{r 6.3}
 #| eval: false
 # Select the first measurement (`storetime`) per `itemid` and `stay_id`
 dbExecute(con, "CREATE TABLE latest_vitals_filtered AS 
@@ -551,7 +545,7 @@ dbExecute(con, "CREATE TABLE latest_vitals_filtered AS
                 ) WHERE rn = 1")
 ```
 
-```{r}
+```{r 6.4}
 #| eval: false
 # Pivot `itemid` into separate columns (one row per ICU stay)
 latest_vitals <- dbGetQuery(con, "SELECT * FROM latest_vitals_filtered")
@@ -576,13 +570,13 @@ colnames(chartevents_tble) <- c("subject_id", "stay_id",
 rm(latest_vitals)
 ```
 
-```{r}
+```{r 6.5}
 #| eval: false
 # Arrange for better readability
 chartevents_tble <- chartevents_tble %>% arrange(subject_id, stay_id)
 
 # View the final dataset
-print(head(chartevents_tble, 10), width = Inf)
+print(head(chartevents_tble, 10), width = 270)
 
 # disconnect from DuckDB
 dbDisconnect(con, shutdown = TRUE)
