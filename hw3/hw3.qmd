@@ -163,8 +163,11 @@ icu_stays_per_subject <- icustays_tble %>%
 
 # Create a histogram to visualize the distribution
 p <- ggplot(icu_stays_per_subject, aes(x = num_stays)) +
-  geom_histogram(binwidth = 1, fill = "#1B9E76", color = "black", alpha = 0.7) +  # Use histogram with bin width 1
-  scale_x_continuous(limits = c(0, 30)) +  # Limit X-axis to focus on the majority of data
+  geom_histogram(binwidth = 1, fill = "#1B9E76", 
+                 color = "black", alpha = 0.7) +  
+                  # Use histogram with bin width 1
+  scale_x_continuous(limits = c(0, 30)) +  
+  # Limit X-axis to focus on the majority of data
   labs(title = "Distribution of ICU Stays per Subject",
        x = "Number of ICU Stays",
        y = "Count of Subjects") +
@@ -225,8 +228,11 @@ admissions_per_patient <- admissions_tble %>%
 
 # Create a histogram to visualize the distribution
 p <- ggplot(admissions_per_patient, aes(x = num_admissions)) +
-  geom_histogram(binwidth = 1, fill = "#D81B60", color = "black", alpha = 0.8) + # Use histogram instead of bar chart
-  scale_x_continuous(limits = c(0, 30)) +  # Limit the X-axis to focus on the most relevant range
+  geom_histogram(binwidth = 1, fill = "#D81B60", 
+                 color = "black", alpha = 0.8) + 
+                  # Use histogram instead of bar chart
+  scale_x_continuous(limits = c(0, 30)) +  
+  # Limit the X-axis to focus on the most relevant range
   labs(title = "Number of Admissions per Patient",
        x = "Admissions per Patient",
        y = "Count of Patients") +
@@ -249,7 +255,8 @@ admissions_tble <- admissions_tble %>%
 
 # Create a histogram of admission hours
 p_hour <- ggplot(admissions_tble, aes(x = admission_hour)) +
-  geom_histogram(binwidth = 1, fill = "#1E88E5", color = "black", alpha = 0.8) +
+  geom_histogram(binwidth = 1, fill = "#1E88E5", 
+                 color = "black", alpha = 0.8) +
   scale_x_continuous(breaks = seq(0, 23, by = 1)) +
   labs(title = "Distribution of Admission Hours",
        x = "Hour of Admission",
@@ -272,7 +279,8 @@ admissions_tble <- admissions_tble %>%
 
 # Create a histogram of admission minutes
 p_minute <- ggplot(admissions_tble, aes(x = admission_minute)) +
-  geom_histogram(binwidth = 1, fill = "#FFC107", color = "black", alpha = 0.8) +
+  geom_histogram(binwidth = 1, fill = "#FFC107", 
+                 color = "black", alpha = 0.8) +
   scale_x_continuous(breaks = seq(0, 59, by = 5)) +
   labs(title = "Distribution of Admission Minutes",
        x = "Minute of Admission",
@@ -292,12 +300,15 @@ The distribution of admission minutes shows distinct spikes at 0, 15, 30, and 45
 ```{r}
 # Calculate length of stay in days
 admissions_tble <- admissions_tble %>%
-  mutate(length_of_stay = as.numeric(difftime(dischtime, admittime, units = "days")))
+  mutate(length_of_stay = as.numeric(difftime(dischtime, 
+                                              admittime, units = "days")))
 
 # Create a histogram of hospital stay length
 p_los <- ggplot(admissions_tble, aes(x = length_of_stay)) +
-  geom_histogram(binwidth = 1, fill = "#4CAF50", color = "black", alpha = 0.8) +
-  scale_x_continuous(limits = c(0, 50)) +  # Adjusted limit for visualization
+  geom_histogram(binwidth = 1, fill = "#4CAF50", 
+                 color = "black", alpha = 0.8) +
+  scale_x_continuous(limits = c(0, 50)) +  
+  # Adjusted limit for visualization
   labs(title = "Distribution of Hospital Stay Length",
        x = "Length of Stay (Days)",
        y = "Count of Admissions") +
@@ -363,7 +374,8 @@ The bar chart indicates that there are more female (F) patients than male (M) pa
 ```{r}
 # Histogram of anchor_age
 p_age <- ggplot(patients_tble, aes(x = anchor_age)) +
-  geom_histogram(binwidth = 5, fill = "#1E88E5", color = "black", alpha = 0.8) +
+  geom_histogram(binwidth = 5, fill = "#1E88E5", 
+                 color = "black", alpha = 0.8) +
   labs(title = "Distribution of Anchor Age",
        x = "Age (Years)",
        y = "Count of Patients") +
@@ -409,8 +421,12 @@ con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
 # Load and filter lab events directly in DuckDB
 dbExecute(con, "CREATE TABLE filtered_labevents AS 
                 SELECT subject_id, itemid, storetime, valuenum
-                FROM read_parquet('~/biostat-203b-2025-winter/hw3/labevents_parquet/part-0.parquet')
-                WHERE itemid IN (50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)")
+                FROM read_parquet(
+    '~/biostat-203b-2025-winter/hw3/labevents_parquet/' || 
+    'part-0.parquet'
+  )
+                WHERE itemid IN (50912, 50971, 50983, 50902, 
+          50882, 51221, 51301, 50931)")
 
 ```
 
@@ -422,7 +438,8 @@ dbExecute(con, "CREATE TABLE icustays AS
 
 # Join lab events with ICU stays and filter by time condition
 dbExecute(con, "CREATE TABLE merged_labevents AS 
-                SELECT l.subject_id, i.stay_id, l.itemid, l.storetime, l.valuenum
+                SELECT l.subject_id, i.stay_id, 
+                l.itemid, l.storetime, l.valuenum
                 FROM filtered_labevents l
                 INNER JOIN icustays i ON l.subject_id = i.subject_id
                 WHERE l.storetime < i.intime")
@@ -433,7 +450,8 @@ dbExecute(con, "CREATE TABLE merged_labevents AS
 dbExecute(con, "CREATE TABLE latest_labs AS 
                 SELECT subject_id, stay_id, itemid, storetime, valuenum
                 FROM (
-                    SELECT *, ROW_NUMBER() OVER (PARTITION BY subject_id, stay_id, itemid ORDER BY storetime DESC) AS rn
+                    SELECT *, ROW_NUMBER() OVER (PARTITION BY 
+                    subject_id, stay_id, itemid ORDER BY storetime DESC) AS rn
                     FROM merged_labevents
                 ) WHERE rn = 1")
 ```
@@ -442,14 +460,22 @@ dbExecute(con, "CREATE TABLE latest_labs AS
 # Pivot `itemid` to become separate columns
 dbExecute(con, "CREATE TABLE labevents_pivoted AS 
                 SELECT subject_id, stay_id,
-                       MAX(CASE WHEN itemid = 50882 THEN valuenum END) AS bicarbonate,
-                       MAX(CASE WHEN itemid = 50902 THEN valuenum END) AS chloride,
-                       MAX(CASE WHEN itemid = 50912 THEN valuenum END) AS creatinine,
-                       MAX(CASE WHEN itemid = 50931 THEN valuenum END) AS glucose,
-                       MAX(CASE WHEN itemid = 50971 THEN valuenum END) AS potassium,
-                       MAX(CASE WHEN itemid = 50983 THEN valuenum END) AS sodium,
-                       MAX(CASE WHEN itemid = 51221 THEN valuenum END) AS hematocrit,
-                       MAX(CASE WHEN itemid = 51301 THEN valuenum END) AS wbc
+                       MAX(CASE 
+                       WHEN itemid = 50882 THEN valuenum END) AS bicarbonate,
+                       MAX(CASE 
+                       WHEN itemid = 50902 THEN valuenum END) AS chloride,
+                       MAX(CASE 
+                       WHEN itemid = 50912 THEN valuenum END) AS creatinine,
+                       MAX(CASE 
+                       WHEN itemid = 50931 THEN valuenum END) AS glucose,
+                       MAX(CASE 
+                       WHEN itemid = 50971 THEN valuenum END) AS potassium,
+                       MAX(CASE 
+                       WHEN itemid = 50983 THEN valuenum END) AS sodium,
+                       MAX(CASE 
+                       WHEN itemid = 51221 THEN valuenum END) AS hematocrit,
+                       MAX(CASE 
+                       WHEN itemid = 51301 THEN valuenum END) AS wbc
                 FROM latest_labs
                 GROUP BY subject_id, stay_id")
 
@@ -460,7 +486,8 @@ labevents_tble <- dbGetQuery(con, "SELECT * FROM labevents_pivoted")
 labevents_tble <- labevents_tble %>% arrange(subject_id, stay_id)
 
 # View final dataset
-print(head(labevents_tble, 10), width = 250)
+options(width = 1000)
+print(head(labevents_tble, 10))
 
 # Disconnect from DuckDB
 dbDisconnect(con, shutdown = TRUE)
@@ -491,19 +518,21 @@ We are interested in the vitals for ICU patients: heart rate (220045), systolic 
 ------------------------------------------------------------------------
 
 Solution:
+
 ```{r 6.1pre}
 #Connect to DuckDB
 con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
 
 # Load ICU stays dataset from CSV into DuckDB
-duckdb_table_icustays <- tbl(con, sql("SELECT * FROM read_csv_auto('~/mimic/icu/icustays.csv.gz')"))
+duckdb_table_icustays <- tbl(
+  con, sql("SELECT * FROM read_csv_auto('~/mimic/icu/icustays.csv.gz')")
+  )
 
 # Query ICU stays dataset within DuckDB
 result_icustays <- duckdb_table_icustays %>%
   select(subject_id, stay_id, intime,outtime) %>%  # Select necessary columns
   collect()  # Bring the filtered results into memory as a tibble
 ```
-
 
 ```{r 6.1}
 # Connect to DuckDB
@@ -512,7 +541,10 @@ con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
 #  Load and filter only required `itemid` values (Reduce Memory Usage)
 dbExecute(con, "CREATE TABLE chartevents_duckdb AS 
                 SELECT subject_id, itemid, storetime, valuenum 
-                FROM read_parquet('~/biostat-203b-2025-winter/hw3/chartevents_parquet/part-0.parquet')
+                FROM read_parquet(
+    '~/biostat-203b-2025-winter/hw3/chartevents_parquet/' || 
+    'part-0.parquet'
+  )
                 WHERE itemid IN (220045, 220179, 220180, 223761, 220210)")
 
 #  Load `icustays_tble` into DuckDB
@@ -522,37 +554,35 @@ dbWriteTable(con, "icustays", result_icustays, overwrite = TRUE)
 ```{r 6.2}
 # Filter the measurements in between the icu time
 dbExecute(con, "CREATE TABLE latest_vitals_raw AS 
-                SELECT c.subject_id, i.stay_id, c.itemid, c.storetime, c.valuenum
+                SELECT c.subject_id, i.stay_id, 
+                c.itemid, c.storetime, c.valuenum
                 FROM chartevents_duckdb c
                 INNER JOIN icustays i 
                 ON c.subject_id = i.subject_id
                 WHERE c.storetime BETWEEN i.intime AND i.outtime")
-
-
+rm(result_icustays)
 ```
 
 ```{r 6.3}
-#| eval: false
 # Select the first measurement (`storetime`) per `itemid` and `stay_id`
 dbExecute(con, "CREATE TABLE latest_vitals_filtered AS 
                 SELECT subject_id, stay_id, itemid, storetime, valuenum
                 FROM (
                     SELECT *, 
-                    ROW_NUMBER() OVER 
-                    (PARTITION BY subject_id, stay_id, itemid 
+                    ROW_NUMBER() OVER (PARTITION BY subject_id, stay_id, itemid 
                     ORDER BY storetime ASC) AS rn
                     FROM latest_vitals_raw
                 ) WHERE rn = 1")
 ```
 
 ```{r 6.4}
-#| eval: false
 # Pivot `itemid` into separate columns (one row per ICU stay)
 latest_vitals <- dbGetQuery(con, "SELECT * FROM latest_vitals_filtered")
 
 chartevents_tble <- latest_vitals %>%
   select(-storetime) %>%
-  pivot_wider(names_from = itemid, values_from = valuenum, values_fill = list(valuenum = NA))
+  pivot_wider(names_from = itemid, values_from = valuenum, 
+              values_fill = list(valuenum = NA))
 
 # Create a named vector mapping `itemid` to readable names
 itemid_mapping <- c(
@@ -564,22 +594,36 @@ itemid_mapping <- c(
 )
 
 # Rename columns based on `itemid_mapping`
-colnames(chartevents_tble) <- c("subject_id", "stay_id", 
-                                itemid_mapping[colnames(chartevents_tble)[-(1:2)]]) 
+colnames(chartevents_tble) <- c(
+  "subject_id", "stay_id",
+  itemid_mapping[colnames(chartevents_tble)[-c(1:2)]]
+) 
 
 rm(latest_vitals)
 ```
 
 ```{r 6.5}
-#| eval: false
 # Arrange for better readability
 chartevents_tble <- chartevents_tble %>% arrange(subject_id, stay_id)
 
+# Ensure columns appear in the correct order
+desired_order <- c("subject_id", "stay_id", 
+                   "heart_rate", 
+                   "non-invasive_blood_pressure_diastolic", 
+                   "non-invasive_blood_pressure_systolic",
+                   "respiratory_rate",
+                   "temperature_fahrenheit")
+
+chartevents_tble <- chartevents_tble[, desired_order]
+
 # View the final dataset
-print(head(chartevents_tble, 10), width = 270)
+options(width = 1000)
+print(head(chartevents_tble, 10))
 
 # disconnect from DuckDB
 dbDisconnect(con, shutdown = TRUE)
+
+rm(con)
 ```
 
 ## Q7. Putting things together
