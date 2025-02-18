@@ -72,22 +72,25 @@ Hint: We need to pull information from data files `patients.csv.gz`, `admissions
 Solution:
 
 ```{r}
+#| eval: false
 # Load datasets
 patients <- read_csv("~/mimic/hosp/patients.csv.gz")
 admissions <- read_csv("~/mimic/hosp/admissions.csv.gz")
 transfers <- read_csv("~/mimic/hosp/transfers.csv.gz")
-labevents <- open_dataset(
-  "~/biostat-203b-2025-winter/hw3/labevents_pq",
-  format = "parquet"
-)
+
 procedures <- read_csv("~/mimic/hosp/procedures_icd.csv.gz")
 diagnoses <- read_csv("~/mimic/hosp/diagnoses_icd.csv.gz")
 d_icd_procedures <- read_csv("~/mimic/hosp/d_icd_procedures.csv.gz")
 d_icd_diagnoses <- read_csv("~/mimic/hosp/d_icd_diagnoses.csv.gz")
 
+labevents <- open_dataset(
+  "~/biostat-203b-2025-winter/hw3/labevents_parquet",
+  format = "parquet"
+)
 ```
 
 ```{r}
+#| eval: false
 # Filter for patient 10063848
 patient_id <- 10063848
 patient_data <- patients %>% filter(subject_id == patient_id)
@@ -96,6 +99,9 @@ transfers_data <- transfers %>% filter(subject_id == patient_id)
 labevents_data <- labevents %>% filter(subject_id == patient_id)
 procedures_data <- procedures %>% filter(subject_id == patient_id)
 diagnoses_data <- diagnoses %>% filter(subject_id == patient_id)
+
+rm(patients,admissions,transfers,labevents,
+   procedures,d_icd_procedures,d_icd_diagnoses)
 ```
 
 ### Q1.2 ICU stays
@@ -309,6 +315,7 @@ The distribution of hospital stay length is right-skewed, with most admissions h
 Patient information is available in `patients.csv.gz`. See <https://mimic.mit.edu/docs/iv/modules/hosp/patients/> for details of each field in this file. The first 10 lines are
 
 ```{bash}
+#| eval: false
 zcat < ~/mimic/hosp/patients.csv.gz | head
 ```
 
@@ -374,12 +381,14 @@ The histogram of anchor_age shows a bimodal distribution, with a large concentra
 `labevents.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/hosp/labevents/>) contains all laboratory measurements for patients. The first 10 lines are
 
 ```{bash}
+#| eval: false
 zcat < ~/mimic/hosp/labevents.csv.gz | head
 ```
 
 `d_labitems.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/hosp/d_labitems/>) is the dictionary of lab measurements.
 
 ```{bash}
+#| eval: false
 zcat < ~/mimic/hosp/d_labitems.csv.gz | head
 ```
 
@@ -393,9 +402,9 @@ Hint: Use the Parquet format you generated in Homework 2. For reproducibility, m
 
 Solution:
 
-```{r}
+```{r Q5}
 # Load lab events dataset from Parquet (keeping it in Arrow format)
-labevents_table <- open_dataset("~/biostat-203b-2025-winter/hw3/labevents_pq", format = "parquet")
+labevents_table <- open_dataset("~/biostat-203b-2025-winter/hw3/labevents_parquet", format = "parquet")
 
 con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:") 
 duckdb_table <- arrow::to_duckdb(labevents_table, 
@@ -410,7 +419,7 @@ result_labevents <- tbl(con, "labevents_duckdb") %>%
   collect()
 ```
 
-```{r}
+```{r c5.1}
 #Connect to DuckDB
 con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
 
@@ -430,7 +439,7 @@ dbDisconnect(con, shutdown = TRUE)
 
 ```
 
-```{r}
+```{r 5.2}
 # Merge `result_icustays` with `result_labevents` on `subject_id` and `stay_id`
 merged_data <- result_labevents %>%
   inner_join(result_icustays, by = c("subject_id")) %>%
@@ -443,11 +452,10 @@ latest_labs <- merged_data %>%
   slice_max(order_by = storetime, n = 1, with_ties = FALSE) %>%  # Keep only the most recent lab result
   ungroup()
 
-
 rm(merged_data)
 ```
 
-```{r}
+```{r 5.3}
 # Remove `storetime` before pivoting
 latest_labs1 <- latest_labs %>%
   select(-storetime)  # Remove storetime before pivot_wider()
@@ -459,7 +467,7 @@ latest_labs <- latest_labs1 %>%
 rm(latest_labs1)
 ```
 
-```{r}
+```{r 5.4}
 # Pivot `itemid` to become separate columns with the most recent `valuenum`
 labevents_tble <- latest_labs %>%
   pivot_wider(names_from = itemid, values_from = valuenum)
@@ -474,6 +482,7 @@ labevents_tble <- labevents_tble %>% arrange(subject_id, stay_id)
 # View the final dataset
 print(head(labevents_tble, 10), width = Inf)
 
+rm(latest_labs)
 ```
 
 ## Q6. Vitals from charted events
@@ -481,12 +490,14 @@ print(head(labevents_tble, 10), width = Inf)
 `chartevents.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/icu/chartevents/>) contains all the charted data available for a patient. During their ICU stay, the primary repository of a patient’s information is their electronic chart. The `itemid` variable indicates a single measurement type in the database. The `value` variable is the value measured for `itemid`. The first 10 lines of `chartevents.csv.gz` are
 
 ```{bash}
+#| eval: false
 zcat < ~/mimic/icu/chartevents.csv.gz | head
 ```
 
 `d_items.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/icu/d_items/>) is the dictionary for the `itemid` in `chartevents.csv.gz`.
 
 ```{bash}
+#| eval: false
 zcat < ~/mimic/icu/d_items.csv.gz | head
 ```
 
@@ -498,14 +509,15 @@ We are interested in the vitals for ICU patients: heart rate (220045), systolic 
 
 Solution:
 
-```{r}
+```{r 6.1}
+#| eval: false
 # Connect to DuckDB
 con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:") 
 
 #  Load and filter only required `itemid` values (Reduce Memory Usage)
 dbExecute(con, "CREATE TABLE chartevents_duckdb AS 
                 SELECT subject_id, itemid, storetime, valuenum 
-                FROM read_parquet('~/biostat-203b-2025-winter/hw2/chartevents_parquet/part-0.parquet')
+                FROM read_parquet('~/biostat-203b-2025-winter/hw3/chartevents_parquet/part-0.parquet')
                 WHERE itemid IN (220045, 220179, 220180, 223761, 220210)")
 
 #  Load `icustays_tble` into DuckDB
@@ -513,41 +525,40 @@ dbWriteTable(con, "icustays", result_icustays, overwrite = TRUE)
 ```
 
 ```{r}
-# Join with ICU patients and keep only first vital measurement within ICU stay
-dbExecute(con, "CREATE TABLE latest_vitals AS 
-                SELECT subject_id, stay_id, itemid, storetime, valuenum
-                FROM (
-                    SELECT c.subject_id, i.stay_id, c.itemid, c.storetime, c.valuenum,
-                           ROW_NUMBER() OVER (PARTITION BY c.subject_id, i.stay_id, c.itemid 
-                                              ORDER BY c.storetime ASC) AS rn
-                    FROM chartevents_duckdb c
-                    INNER JOIN icustays i 
-                    ON c.subject_id = i.subject_id
-                    WHERE c.storetime BETWEEN i.intime AND i.outtime
-                ) WHERE rn = 1")
+#| eval: false
+# Filter the measurements in between the icu time
+dbExecute(con, "CREATE TABLE latest_vitals_raw AS 
+                SELECT c.subject_id, i.stay_id, c.itemid, c.storetime, c.valuenum
+                FROM chartevents_duckdb c
+                INNER JOIN icustays i 
+                ON c.subject_id = i.subject_id
+                WHERE c.storetime BETWEEN i.intime AND i.outtime")
+
 
 ```
 
 ```{r}
-#eval = False
+#| eval: false
 # Select the first measurement (`storetime`) per `itemid` and `stay_id`
 dbExecute(con, "CREATE TABLE latest_vitals_filtered AS 
-                SELECT subject_id, stay_id, itemid, valuenum
+                SELECT subject_id, stay_id, itemid, storetime, valuenum
                 FROM (
-                    SELECT *, ROW_NUMBER() OVER (PARTITION BY subject_id, stay_id, itemid ORDER BY storetime ASC) AS rn
-                    FROM latest_vitals
+                    SELECT *, 
+                    ROW_NUMBER() OVER 
+                    (PARTITION BY subject_id, stay_id, itemid 
+                    ORDER BY storetime ASC) AS rn
+                    FROM latest_vitals_raw
                 ) WHERE rn = 1")
-
 ```
 
 ```{r}
+#| eval: false
 # Pivot `itemid` into separate columns (one row per ICU stay)
 latest_vitals <- dbGetQuery(con, "SELECT * FROM latest_vitals_filtered")
 
 chartevents_tble <- latest_vitals %>%
-  pivot_wider(names_from = itemid, values_from = valuenum)
-
-
+  select(-storetime) %>%
+  pivot_wider(names_from = itemid, values_from = valuenum, values_fill = list(valuenum = NA))
 
 # Create a named vector mapping `itemid` to readable names
 itemid_mapping <- c(
@@ -562,11 +573,11 @@ itemid_mapping <- c(
 colnames(chartevents_tble) <- c("subject_id", "stay_id", 
                                 itemid_mapping[colnames(chartevents_tble)[-(1:2)]]) 
 
-
-
+rm(latest_vitals)
 ```
 
 ```{r}
+#| eval: false
 # Arrange for better readability
 chartevents_tble <- chartevents_tble %>% arrange(subject_id, stay_id)
 
@@ -594,10 +605,6 @@ The final `mimic_icu_cohort` should have one row per ICU stay and columns for ea
 ------------------------------------------------------------------------
 
 Solution:
-
-```{r}
-
-```
 
 ## Q8. Exploratory data analysis (EDA)
 
