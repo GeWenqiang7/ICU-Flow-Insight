@@ -116,11 +116,15 @@ Do a similar visualization for the patient `10063848`.
 
 Solution:
 
+```{r1.2.1}
+
+```
+
 ## Q2. ICU stays
 
 `icustays.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/icu/icustays/>) contains data about Intensive Care Units (ICU) stays. The first 10 lines are
 
-```{bash}
+```{bash, eval = FALSE}
 zcat < ~/mimic/icu/icustays.csv.gz | head
 ```
 
@@ -185,7 +189,7 @@ The histogram shows the distribution of ICU stays per subject (patient). Most su
 
 Information of the patients admitted into hospital is available in `admissions.csv.gz`. See <https://mimic.mit.edu/docs/iv/modules/hosp/admissions/> for details of each field in this file. The first 10 lines are
 
-```{bash}
+```{bash, eval = FALSE}
 zcat < ~/mimic/hosp/admissions.csv.gz | head
 ```
 
@@ -643,6 +647,71 @@ The final `mimic_icu_cohort` should have one row per ICU stay and columns for ea
 ------------------------------------------------------------------------
 
 Solution:
+
+```{r 7.1}
+# Connect to DuckDB
+con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+
+# Write data into DuckDB
+dbWriteTable(con, "icustays_tble", icustays_tble, overwrite = TRUE)
+dbWriteTable(con, "admissions_tble", admissions_tble, overwrite = TRUE)
+dbWriteTable(con, "patients_tble", patients_tble, overwrite = TRUE)
+
+# Load ICU stays data
+icustays_tble <- dbGetQuery(con, "SELECT * FROM icustays_tble")
+
+# Load admissions data
+admissions_tble <- dbGetQuery(con, "SELECT * FROM admissions_tble")
+
+# Load patients data
+patients_tble <- dbGetQuery(con, "SELECT * FROM patients_tble")
+
+```
+
+```{r 7.2}
+# Write data into DuckDB
+dbWriteTable(con, "labevents_tble", labevents_tble, overwrite = TRUE)
+dbWriteTable(con, "chartevents_tble", chartevents_tble, overwrite = TRUE)
+
+# Load lab/chart events
+labevents_tble <- dbGetQuery(con, "SELECT * FROM labevents_tble")
+chartevents_tble <- dbGetQuery(con, "SELECT * FROM chartevents_tble")
+
+```
+
+```{r 7.3}
+# Merge ICU stays and admissions**
+mimic_icu_cohort <- icustays_tble %>%
+  inner_join(admissions_tble, by = "subject_id") %>%
+  inner_join(patients_tble, by = "subject_id")
+
+# *Add lab events (most recent lab tests)**
+mimic_icu_cohort <- mimic_icu_cohort %>%
+  left_join(labevents_tble, by = c("subject_id", "stay_id"))
+```
+
+```{r 7.4}
+# Add chart events (first recorded vital signs)**
+mimic_icu_cohort <- mimic_icu_cohort %>%
+  left_join(chartevents_tble, by = c("subject_id", "stay_id"))
+
+#*Ensure each ICU stay corresponds to only one row**
+mimic_icu_cohort <- mimic_icu_cohort %>%
+  distinct(subject_id, stay_id, .keep_all = TRUE)
+
+# Sort by subject_id and stay_id**
+mimic_icu_cohort <- mimic_icu_cohort %>%
+  arrange(subject_id, stay_id)
+
+# Display the final dataset
+options(width = 1000)
+print(head(mimic_icu_cohort, 10))
+
+# Disconnect from the database
+dbDisconnect(con, shutdown = TRUE)
+
+rm(con)
+```
 
 ## Q8. Exploratory data analysis (EDA)
 
