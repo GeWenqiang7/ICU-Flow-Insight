@@ -191,17 +191,23 @@ info <- dbGetQuery(con, "
   limit 1
 ")
 
+```
+
+```{r}
 top_diagnoses <- dbGetQuery(con, "
-  SELECT long_title, COUNT(*) as count
-  FROM title
-  GROUP BY long_title
-  ORDER BY count DESC
-  LIMIT 3
+  SELECT dd.long_title 
+  FROM (
+    SELECT icd_code 
+    FROM diagnoses 
+    LIMIT 3
+  ) AS t
+  LEFT JOIN d_icd_diagnoses dd
+    ON t.icd_code = dd.icd_code
 ")
+
 top_diagnoses_vector <- top_diagnoses$long_title 
 
 rm(top_diagnoses)
-
 ```
 
 ```{r}
@@ -281,7 +287,7 @@ final_plot <- ggplot() +
   guides(color = guide_legend(nrow = 6), shape = guide_legend(nrow = 5))  # Split legend into multiple rows
 
 # Save and display the plot
-ggsave("final_plot.png", final_plot, width = 15, height = 6, dpi = 300)
+ggsave("ADT_plot.png", final_plot, width = 15, height = 6, dpi = 300)
 print(final_plot)
 rm(top_diagnoses_vector)
 ```
@@ -326,7 +332,7 @@ dbWriteTable(con, "icustays", icustays, overwrite = TRUE)
 ```{r}
 # chartevents
 dbExecute(con, "CREATE TABLE chartevents AS 
-                SELECT subject_id, itemid, storetime, valuenum 
+                SELECT subject_id, itemid, charttime, valuenum 
                 FROM read_parquet(
     '~/biostat-203b-2025-winter/hw3/chartevents_parquet/' || 
     'part-0.parquet'
@@ -348,7 +354,8 @@ dbExecute(con, "
 # vital
 dbExecute(con, "
   CREATE TABLE vital AS
-  SELECT c.subject_id,c.itemid,c.storetime,c.valuenum,
+  SELECT c.subject_id,c.itemid,
+  c.charttime,c.valuenum,
   s.stay_id,s.intime,s.outtime
   FROM chartevents c
   Left join stay s
@@ -359,60 +366,72 @@ dbExecute(con, "
 ```{r}
 # Load data from DuckDB
 vital_data <- dbGetQuery(con, "
-  SELECT subject_id, stay_id, itemid, storetime, valuenum, intime, outtime
+  SELECT subject_id, stay_id, itemid, charttime,
+  valuenum, intime, outtime
   FROM vital  
-  WHERE storetime BETWEEN intime AND outtime
+  WHERE charttime BETWEEN intime AND outtime
 ")
 
-rm(con,icustays,patient_data)
+rm(icustays,patient_data)
 ```
 
 ```{r}
 # Convert time columns to POSIXct
 vital_data <- vital_data %>%
-  mutate(storetime = as.POSIXct(storetime, format="%Y-%m-%d %H:%M:%S"),
+  mutate(charttime = as.POSIXct(charttime, format="%Y-%m-%d %H:%M:%S"),
          intime = as.POSIXct(intime, format="%Y-%m-%d %H:%M:%S"),
          outtime = as.POSIXct(outtime, format="%Y-%m-%d %H:%M:%S"))
+  
 
 # Define mapping for itemid to readable labels
 itemid_labels <- c("220045" = "HR",
-                   "220179" = "NBPd",
-                   "220180" = "NBPs",
-                   "223761" = "Temperature (F)",
-                   "220210" = "RR")
+                   "220180" = "NBPd",
+                   "220179" = "NBPs",
+                   "220210" = "RR",
+                   "223761" = "Temperature (F)")
 
 # Assign readable labels for itemid
 vital_data <- vital_data %>%
   mutate(vital_type = factor(itemid_labels[as.character(itemid)], 
                              levels = itemid_labels))
 
-vital_colors <- c("HR" = "red", 
-                  "NBPd" = "darkgoldenrod", 
+vital_colors <- c("HR" = "#FD6349", 
+                  "NBPd" = "goldenrod", 
                   "NBPs" = "green", 
-                  "Temperature (F)" = "purple", 
-                  "RR" = "blue")
+                  "Temperature (F)" = "#FF01FD", 
+                  "RR" = "skyblue")
 ```
 
 ```{r}
-ggplot(vital_data, aes(x = storetime, y = valuenum, color = vital_type)) +
+# Adjust each stay_id's x-axis to fit within its intime and outtime range
+vital_data_filtered <- vital_data %>%
+  group_by(stay_id) %>%
+  ungroup()
+
+
+# Create the Plot with facet_grid
+vital_plot <- ggplot(vital_data_filtered, aes(x = charttime, y = valuenum, color = vital_type)) +
   geom_point(size = 1.5) +
   geom_line(aes(group = vital_type), size = 0.7) + 
   scale_color_manual(values = vital_colors) +
   scale_x_datetime(labels = date_format("%b %d %H:%M"), breaks = "6 hours") + 
-  facet_grid(vital_type ~ stay_id, scales = "free_y", switch = "y") +  
+  facet_grid(vital_type ~ stay_id, scales = "free_y", switch = "y")
+
+
   labs(title = paste("Patient", unique(vital_data$subject_id), "ICU Stays - Vitals"),
        x = "ICU Admission (Intime) and Discharge (Outtime)",
        y = "Value",
        color = "Vital Type") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        strip.text = element_text(size = 12, face = "bold"),  
+        strip.placement = "outside",
+        strip.text.y.right = element_text(size = 12, face = "bold"),
         legend.position = "right")
 
-# **Save the plot**
-ggsave("icu_vitals_plot.png", width = 12, height = 6, dpi = 300)
+# save img
+ggsave("icu_vitals.png", vital_plot, width = 12, height = 6, dpi = 300)
+print(vital_plot)
 
-rm(vital_data,vital_type,itemid_labels)
 
 ```
 
