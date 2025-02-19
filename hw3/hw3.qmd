@@ -45,6 +45,7 @@ library(lubridate)
 library(readr)
 library(duckdb)
 library(DBI)
+library(scales)
 ```
 
 Display your machine memory.
@@ -82,7 +83,7 @@ diagnoses <- read_csv("~/mimic/hosp/diagnoses_icd.csv.gz")
 
 ```{r 1.2}
 # Filter for patient 10063848
-patient_id <- 10001217
+patient_id <- 10063848
 patient_data <- patients %>% filter(subject_id == patient_id)
 admissions_data <- admissions %>% filter(subject_id == patient_id)
 transfers_data <- transfers %>% filter(subject_id == patient_id)
@@ -95,7 +96,6 @@ rm(patients,admissions,
    transfers,procedures,diagnoses,
    patient_id)
 ```
-
 
 ```{r 1.3}
 #Connect to DuckDB
@@ -112,7 +112,6 @@ dbWriteTable(con, "d_icd_diagnoses", d_icd_diagnoses, overwrite = TRUE)
 
 ```
 
-
 ```{r 1.4}
 #  labevents
 dbExecute(con, "CREATE TABLE Lab AS 
@@ -122,10 +121,10 @@ dbExecute(con, "CREATE TABLE Lab AS
     '~/biostat-203b-2025-winter/hw3/labevents_parquet/' || 
     'part-0.parquet'
   )
-                WHERE subject_id = 10001217")
+                WHERE subject_id = 10063848")
 ```
 
-```{r}
+```{r 1.5}
 # ADT 
 dbExecute(con, "
   CREATE TABLE ADT AS
@@ -138,7 +137,7 @@ dbExecute(con, "
 
 ```
 
-```{r}
+```{r 1.6}
 # Procedures
 dbExecute(con, "
   CREATE TABLE Procedure AS
@@ -151,7 +150,7 @@ dbExecute(con, "
 ")
 ```
 
-```{r}
+```{r 1.7}
 #ADT history
 dbExecute(con, "
   CREATE TABLE ADT_history AS
@@ -166,74 +165,136 @@ dbExecute(con, "
 ")
 ```
 
+```{r patient_info}
+#patients info & subtitle shows top 3 diagnoses.
+dbExecute(con, "
+  CREATE TABLE title AS
+  SELECT 
+    p.subject_id,p.gender,p.anchor_age,
+    d.icd_code,d.icd_version,
+    dd.long_title, 
+  FROM patients p
+  LEFT JOIN diagnoses d 
+  on p.subject_id = d.subject_id 
+  LEFT JOIN d_icd_diagnoses dd
+  ON d.icd_code = dd.icd_code and d.icd_version = dd.icd_version
+")
+
+```
+
+```{r}
+info <- dbGetQuery(con, "
+  SELECT t.subject_id,t.gender,t.anchor_age,a.race,
+  FROM title t
+  left join admissions a
+  on t.subject_id = a.subject_id
+  limit 1
+")
+
+top_diagnoses <- dbGetQuery(con, "
+  SELECT long_title, COUNT(*) as count
+  FROM title
+  GROUP BY long_title
+  ORDER BY count DESC
+  LIMIT 3
+")
+top_diagnoses_vector <- top_diagnoses$long_title 
+
+rm(top_diagnoses)
+
+```
+
 ```{r}
 # Collect ADT Data
 adt_data <- tbl(con, "ADT_history") %>%
   collect() %>%
   mutate(intime = as.POSIXct(intime, format="%Y-%m-%d %H:%M:%S"),
          outtime = as.POSIXct(outtime, format="%Y-%m-%d %H:%M:%S")) %>%
-  filter(careunit != "UNKNOWN", outtime > intime)  
+  filter(careunit != "UNKNOWN", outtime > intime)  # Remove unknown care units and ensure valid time intervals
 
 # Collect Procedure Data
 procedure_data <- tbl(con, "Procedure") %>%
   collect() %>%
-  mutate(chartdate = as.POSIXct(chartdate, format="%Y-%m-%d"))
+  mutate(chartdate = as.POSIXct(chartdate, format="%Y-%m-%d"))  # Convert chart date to POSIXct format
 
 # Collect Lab Data (Ensure One Cross Per Day)
 lab_data <- tbl(con, "Lab") %>%
   collect() %>%
-  mutate(charttime = as.POSIXct(charttime, format="%Y-%m-%d %H:%M:%S"))
+  mutate(charttime = as.POSIXct(charttime, format="%Y-%m-%d %H:%M:%S"))  # Convert lab event timestamps to POSIXct format
 
+# Extract unique procedure names (long_title)
+unique_shapes <- unique(procedure_data$long_title)
+num_shapes <- length(unique_shapes)  # Count the number of unique procedure types
+
+# Preset shapes (circle, triangle, square)
+base_shapes <- c(15,16,17)  # Default shapes for the first three procedures
+
+# Additional backup shapes (ggplot2 shape codes)
+extra_shapes <- c(9,10,11,12,13,14)  # Extra shapes in case there are more procedure types
+
+# Determine the final set of shapes to use
+if (num_shapes > length(base_shapes)) {
+  final_shapes <- c(base_shapes, extra_shapes[1:(num_shapes - length(base_shapes))])  # Use backup shapes if needed
+} else {
+  final_shapes <- base_shapes[1:num_shapes]  # Use only the default shapes if they are enough
+}
+
+# Map procedure names to their corresponding shapes
+shape_mapping <- setNames(final_shapes, unique_shapes)
+
+```
+
+```{r}
 # Create Final Plot
 final_plot <- ggplot() +
   
- 
   # Procedure Events
   geom_point(data = procedure_data, aes(x = chartdate, y = "Procedure", shape = long_title), size = 5) +
   
   # Lab Events (Cross Shape)
   geom_point(data = lab_data, aes(x = charttime, y = "Lab"), shape = 3, size = 4, stroke = 1.5) +
   
-   # ADT timeline
+  # ADT timeline
   geom_segment(data = adt_data, aes(x = intime, xend = outtime, y = "ADT", yend = "ADT", 
                                     color = careunit, size = ifelse(careunit %in% c("Surgical Intensive Care Unit (SICU)", 
                                                                                     "Medical Intensive Care Unit (MICU)"), 10, 5))) +
-  
 
-  # Manual Adjustments
-  scale_shape_manual(values = c(16, 17, 15)) +  # Different Shapes for Procedures
+  # Dynamic Shape Assignment
+  scale_shape_manual(values = shape_mapping) +  
   scale_size_identity() +  
   scale_x_datetime(date_labels = "%b %d", date_breaks = "1 week") +  
 
   # Axis Labels and Themes
-  labs(title =  paste("Patient", "and Procedure History"),
+  labs(title = paste("Patient", info[1], ",", 
+                     info[2], ",", info[3], "years old,",
+                     tolower(info[4])),
+       subtitle = paste(top_diagnoses_vector, collapse = "\n"),
        x = "Calendar Time",
        y = "",
        color = "Care Unit",
        shape = "Procedure") +
   
   theme_minimal() +
-  theme(legend.position = "bottom",  # Move legend to bottom
+  theme(legend.position = "bottom",  # Move legend to the bottom
         axis.text.y = element_text(size = 10),  # Ensure Y-axis labels are readable
         axis.ticks.y = element_blank()) +
-  guides(color = guide_legend(nrow = 2), shape = guide_legend(nrow = 2))  # Split legend into two rows
+  guides(color = guide_legend(nrow = 6), shape = guide_legend(nrow = 5))  # Split legend into multiple rows
 
+# Save and display the plot
 ggsave("final_plot.png", final_plot, width = 15, height = 6, dpi = 300)
-
 print(final_plot)
+rm(top_diagnoses_vector)
 ```
-
 
 ```{r}
-
-rm(admissions_data,lab_data,final_plot,transfers_data,
+rm(admissions_data,lab_data,transfers_data,
    procedure_data,procedures_data,d_icd_diagnoses,
-   d_icd_procedures,patient_data,procedure_plot,
-   adt_plot,adt_data,diagnoses_data)
+   d_icd_procedures,patient_data,adt_data,diagnoses_data)
 
-rm(con)
+rm(final_plot,shape_mapping,unique_shapes)
+
+rm(con,info)
 ```
-
 
 ### Q1.2 ICU stays
 
@@ -246,14 +307,114 @@ Do a similar visualization for the patient `10063848`.
 ------------------------------------------------------------------------
 
 Solution:
+
 ```{r}
-#| eval: false
-patient_id <- 10001217
+patient_id <- 10063848
 icustays <- read_csv("~/mimic/icu/icustays.csv.gz")
 patient_data <- icustays %>% filter(subject_id == patient_id)
 ```
 
+```{r}
+#Connect to DuckDB
+con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
 
+#  Load `data` into DuckDB
+dbWriteTable(con, "patients", patient_data, overwrite = TRUE)
+dbWriteTable(con, "icustays", icustays, overwrite = TRUE)
+```
+
+```{r}
+# chartevents
+dbExecute(con, "CREATE TABLE chartevents AS 
+                SELECT subject_id, itemid, storetime, valuenum 
+                FROM read_parquet(
+    '~/biostat-203b-2025-winter/hw3/chartevents_parquet/' || 
+    'part-0.parquet'
+  )
+                WHERE itemid IN (220045, 220179, 220180, 223761, 220210) and 
+                subject_id = 10063848")
+```
+
+```{r}
+# stay 
+dbExecute(con, "
+  CREATE TABLE stay AS
+  SELECT subject_id,stay_id,intime,outtime
+  FROM icustays
+")
+```
+
+```{r}
+# vital
+dbExecute(con, "
+  CREATE TABLE vital AS
+  SELECT c.subject_id,c.itemid,c.storetime,c.valuenum,
+  s.stay_id,s.intime,s.outtime
+  FROM chartevents c
+  Left join stay s
+  on c.subject_id = s.subject_id
+")
+```
+
+```{r}
+# Load data from DuckDB
+vital_data <- dbGetQuery(con, "
+  SELECT subject_id, stay_id, itemid, storetime, valuenum, intime, outtime
+  FROM vital  
+  WHERE storetime BETWEEN intime AND outtime
+")
+
+rm(con,icustays,patient_data)
+```
+
+```{r}
+# Convert time columns to POSIXct
+vital_data <- vital_data %>%
+  mutate(storetime = as.POSIXct(storetime, format="%Y-%m-%d %H:%M:%S"),
+         intime = as.POSIXct(intime, format="%Y-%m-%d %H:%M:%S"),
+         outtime = as.POSIXct(outtime, format="%Y-%m-%d %H:%M:%S"))
+
+# Define mapping for itemid to readable labels
+itemid_labels <- c("220045" = "HR",
+                   "220179" = "NBPd",
+                   "220180" = "NBPs",
+                   "223761" = "Temperature (F)",
+                   "220210" = "RR")
+
+# Assign readable labels for itemid
+vital_data <- vital_data %>%
+  mutate(vital_type = factor(itemid_labels[as.character(itemid)], 
+                             levels = itemid_labels))
+
+vital_colors <- c("HR" = "red", 
+                  "NBPd" = "darkgoldenrod", 
+                  "NBPs" = "green", 
+                  "Temperature (F)" = "purple", 
+                  "RR" = "blue")
+```
+
+```{r}
+ggplot(vital_data, aes(x = storetime, y = valuenum, color = vital_type)) +
+  geom_point(size = 1.5) +
+  geom_line(aes(group = vital_type), size = 0.7) + 
+  scale_color_manual(values = vital_colors) +
+  scale_x_datetime(labels = date_format("%b %d %H:%M"), breaks = "6 hours") + 
+  facet_grid(vital_type ~ stay_id, scales = "free_y", switch = "y") +  
+  labs(title = paste("Patient", unique(vital_data$subject_id), "ICU Stays - Vitals"),
+       x = "ICU Admission (Intime) and Discharge (Outtime)",
+       y = "Value",
+       color = "Vital Type") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        strip.text = element_text(size = 12, face = "bold"),  
+        legend.position = "right")
+
+# **Save the plot**
+ggsave("icu_vitals_plot.png", width = 12, height = 6, dpi = 300)
+
+rm(vital_data,vital_type,itemid_labels)
+
+```
 
 ## Q2. ICU stays
 
@@ -459,7 +620,6 @@ ggplotly(p_los)
 
 The distribution of hospital stay length is right-skewed, with most admissions having a short length of stay. The majority of patients are discharged within a few days, with the highest count around 1–3 days, suggesting that many hospital visits are for short-term treatments or observations. As the length of stay increases, the number of admissions decreases, indicating that extended hospitalizations are less common. The presence of a long tail suggests that a small number of patients require prolonged hospital care, possibly due to severe or chronic conditions. This pattern is typical in hospital data, where most cases are routine and resolved quickly, while complex cases require extended stays.
 
-
 ## Q4. `patients` data
 
 Patient information is available in `patients.csv.gz`. See <https://mimic.mit.edu/docs/iv/modules/hosp/patients/> for details of each field in this file. The first 10 lines are
@@ -526,7 +686,6 @@ ggplotly(p_age)
 ```
 
 The histogram of anchor_age shows a bimodal distribution, with a large concentration of patients in the 20–30 age range and another broader peak between 50–70 years old. The younger peak could represent a large number of maternity-related or younger adult admissions, while the older peak likely reflects age-related chronic conditions and elderly care. The drop-off after 80 years suggests a lower number of very elderly patients, possibly due to lower life expectancy or selection bias in hospital records.
-
 
 ```{r}
 rm(p,p_hour,p_los,
