@@ -435,6 +435,11 @@ print(vital_plot)
 
 ```
 
+```{r}
+rm(vital_data,vital_data_filtered,vital_plot)
+rm(vital_colors)
+```
+
 ## Q2. ICU stays
 
 `icustays.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/icu/icustays/>) contains data about Intensive Care Units (ICU) stays. The first 10 lines are
@@ -1043,3 +1048,7 @@ Summarize the following information about the ICU stay cohort `mimic_icu_cohort`
 -   Length of ICU stay `los` vs the first vital measurements within the ICU stay
 
 -   Length of ICU stay `los` vs first ICU unit
+
+------------------------------------------------------------------------
+
+Solution:
