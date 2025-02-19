@@ -891,16 +891,27 @@ dbExecute(con, "CREATE TABLE latest_vitals_raw AS
 rm(result_icustays)
 ```
 
+```{r}
+dbExecute(con, "CREATE TABLE ranked_vitals AS 
+        SELECT *, 
+        ROW_NUMBER() OVER (PARTITION BY subject_id, stay_id, itemid ORDER BY storetime ASC) AS row_num,
+        FIRST_VALUE(storetime) OVER (PARTITION BY subject_id, stay_id, itemid ORDER BY storetime ASC) AS first_storetime
+        FROM latest_vitals_raw")
+```
+
+```{r}
+dbExecute(con, "CREATE TABLE first_vitals AS 
+        SELECT * 
+        FROM ranked_vitals
+        WHERE storetime = first_storetime")
+```
+
 ```{r 6.3}
 # Select the first measurement (`storetime`) per `itemid` and `stay_id`
-dbExecute(con, "CREATE TABLE latest_vitals_filtered AS 
-                SELECT subject_id, stay_id, itemid, storetime, valuenum
-                FROM (
-                    SELECT *, 
-                    ROW_NUMBER() OVER (PARTITION BY subject_id, stay_id, itemid 
-                    ORDER BY storetime ASC) AS rn
-                    FROM latest_vitals_raw
-                ) WHERE rn = 1")
+dbExecute(con, "CREATE TABLE latest_vitals_filtered AS
+    SELECT subject_id, stay_id, itemid, storetime, round(AVG(valuenum),2) AS valuenum
+    FROM first_vitals
+    GROUP BY subject_id, stay_id, itemid, storetime")
 ```
 
 ```{r 6.4}
@@ -1052,3 +1063,46 @@ Summarize the following information about the ICU stay cohort `mimic_icu_cohort`
 ------------------------------------------------------------------------
 
 Solution:
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+
+# Remove extreme outliers for better visualization (e.g., focus on LOS < 50 days)
+mimic_icu_cohort_filtered <- mimic_icu_cohort %>%
+  filter(los < quantile(los, 0.99, na.rm = TRUE))  # Remove top 1% outliers
+
+# Calculate median LOS per race and order the factor levels
+race_order <- mimic_icu_cohort_filtered %>%
+  group_by(race) %>%
+  summarise(median_los = median(los, na.rm = TRUE)) %>%
+  arrange(median_los) %>%
+  pull(race)
+
+mimic_icu_cohort_filtered$race <- factor(mimic_icu_cohort_filtered$race, levels = race_order)
+
+# Improved boxplot with better visibility
+ggplot(mimic_icu_cohort_filtered, aes(x = race, y = los, fill = race)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +  # Reduce opacity for better visibility
+  coord_flip() +  # Flip to horizontal for better readability
+  theme_minimal() +  # Cleaner theme
+  theme(
+    axis.text.y = element_text(size = 10, face = "bold"),  # Bigger labels
+    legend.position = "none"  # Hide legend to declutter
+  ) +
+  labs(
+    title = "ICU Length of Stay by Race (Filtered Outliers)",
+    x = "Race",
+    y = "Length of Stay (days)"
+  )
+
+
+# Boxplot: LOS vs Gender
+ggplot(mimic_icu_cohort, aes(x = gender, y = los, fill = gender)) +
+  geom_boxplot() +
+  labs(title = "ICU Length of Stay by Gender", x = "Gender", y = "Length of Stay (days)")
+
+
+
+```
