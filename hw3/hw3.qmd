@@ -309,6 +309,8 @@ print(final_plot)
 rm(top_diagnoses_vector)
 ```
 
+![](images/clipboard-2812213175.png)
+
 ```{r}
 rm(admissions_data,lab_data,transfers_data,
    procedure_data,procedures_data,d_icd_diagnoses,
@@ -448,6 +450,8 @@ print(vital_plot)
 
 
 ```
+
+![](images/clipboard-3743216497.png)
 
 ```{r}
 rm(vital_data,vital_data_filtered,vital_plot)
