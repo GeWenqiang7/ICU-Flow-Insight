@@ -3,21 +3,21 @@ title: "Biostat 203B Homework 3"
 subtitle: "Due Feb 21 @ 11:59PM"
 author: "Wenqiang Ge UID:106371961"
 format:
-  # pdf:
-  #   documentclass: article
-  #   toc: true
-  #   toc-depth: 2
-  #   keep-tex: true
-  #   number-sections: true
-  #   highlight-style: tango
-  html:
-    theme: cosmo
-    embed-resources: true
-    number-sections: false
+  pdf:
+    documentclass: article
     toc: true
-    toc-depth: 4
-    toc-location: left
-    code-fold: false
+    toc-depth: 2
+    keep-tex: true
+    number-sections: true
+    highlight-style: tango
+  # html:
+  #   theme: cosmo
+  #   embed-resources: true
+  #   number-sections: false
+  #   toc: true
+  #   toc-depth: 4
+  #   toc-location: left
+  #   code-fold: false
 ---
 
 Display machine information for reproducibility:
@@ -511,9 +511,9 @@ p <- ggplot(icu_stays_per_subject, aes(x = num_stays)) +
        y = "Count of Subjects") +
   theme_minimal()  # Use a clean theme for better readability
 
-#print(p)
+print(p)
 # Convert to an interactive plot
-ggplotly(p)
+#ggplotly(p)
 
 rm(icu_stays_per_subject)
 ```
@@ -577,9 +577,9 @@ p <- ggplot(admissions_per_patient, aes(x = num_admissions)) +
        y = "Count of Patients") +
   theme_minimal()  # Use a clean theme for better readability
 
-#print(p)
+print(p)
 # Convert to an interactive plot
-ggplotly(p)
+#ggplotly(p)
 
 rm(admissions_per_patient)
 ```
@@ -603,9 +603,9 @@ p_hour <- ggplot(admissions_tble, aes(x = admission_hour)) +
        y = "Count of Admissions") +
   theme_minimal()
 
-#print(p_hour)
+print(p_hour)
 # Convert to interactive plot
-ggplotly(p_hour)
+#ggplotly(p_hour)
 
 ```
 
@@ -628,9 +628,9 @@ p_minute <- ggplot(admissions_tble, aes(x = admission_minute)) +
        y = "Count of Admissions") +
   theme_minimal()
 
-#print(p_minute)
+print(p_minute)
 # Convert to interactive plot
-ggplotly(p_minute)
+#ggplotly(p_minute)
 ```
 
 The distribution of admission minutes shows distinct spikes at 0, 15, 30, and 45 minutes, suggesting that admission times are often rounded to quarter-hour intervals. This pattern likely arises due to manual data entry practices, hospital system constraints, or administrative processes that batch-record admissions. The relatively uniform distribution in other minutes indicates that some admissions occur naturally without rounding, but the spikes highlight a systemic bias in how times are logged. This could impact time-based analyses and should be accounted for in further data processing.
@@ -654,9 +654,9 @@ p_los <- ggplot(admissions_tble, aes(x = length_of_stay)) +
        y = "Count of Admissions") +
   theme_minimal()
 
-#print(p_los)
+print(p_los)
 # Convert to interactive plot
-ggplotly(p_los)
+#ggplotly(p_los)
 
 ```
 
@@ -705,9 +705,9 @@ p_gender <- ggplot(gender_dist, aes(x = gender, y = n, fill = gender)) +
   theme_minimal()
 
 
-#print(p_gender)
+print(p_gender)
 # Convert to interactive plot
-ggplotly(p_gender)
+#ggplotly(p_gender)
 rm(gender_dist)
 ```
 
@@ -723,9 +723,9 @@ p_age <- ggplot(patients_tble, aes(x = anchor_age)) +
        y = "Count of Patients") +
   theme_minimal()
 
-#print(p_age)
+print(p_age)
 # Convert to interactive plot
-ggplotly(p_age)
+#ggplotly(p_age)
 
 ```
 
