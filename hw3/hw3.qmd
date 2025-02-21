@@ -38,7 +38,6 @@ library(R.utils)
 library(tidyverse)
 library(data.table)
 library(duckdb)
-library(memuse)
 library(ggplot2)
 library(dplyr)
 library(lubridate)
@@ -216,33 +215,42 @@ adt_data <- tbl(con, "ADT_history") %>%
   collect() %>%
   mutate(intime = as.POSIXct(intime, format="%Y-%m-%d %H:%M:%S"),
          outtime = as.POSIXct(outtime, format="%Y-%m-%d %H:%M:%S")) %>%
-  filter(careunit != "UNKNOWN", outtime > intime)  # Remove unknown care units and ensure valid time intervals
+  filter(careunit != "UNKNOWN", outtime > intime)  
+# Remove unknown care units and ensure valid time intervals
 
 # Collect Procedure Data
 procedure_data <- tbl(con, "Procedure") %>%
   collect() %>%
-  mutate(chartdate = as.POSIXct(chartdate, format="%Y-%m-%d"))  # Convert chart date to POSIXct format
+  mutate(chartdate = as.POSIXct(chartdate, format="%Y-%m-%d"))  
+# Convert chart date to POSIXct format
 
 # Collect Lab Data (Ensure One Cross Per Day)
 lab_data <- tbl(con, "Lab") %>%
   collect() %>%
-  mutate(charttime = as.POSIXct(charttime, format="%Y-%m-%d %H:%M:%S"))  # Convert lab event timestamps to POSIXct format
+  mutate(charttime = as.POSIXct(charttime, format="%Y-%m-%d %H:%M:%S"))  
+# Convert lab event timestamps to POSIXct format
 
 # Extract unique procedure names (long_title)
 unique_shapes <- unique(procedure_data$long_title)
-num_shapes <- length(unique_shapes)  # Count the number of unique procedure types
+num_shapes <- length(unique_shapes) 
+# Count the number of unique procedure types
 
 # Preset shapes (circle, triangle, square)
-base_shapes <- c(15,16,17)  # Default shapes for the first three procedures
+base_shapes <- c(15,16,17)  
+# Default shapes for the first three procedures
 
 # Additional backup shapes (ggplot2 shape codes)
-extra_shapes <- c(9,10,11,12,13,14)  # Extra shapes in case there are more procedure types
+extra_shapes <- c(9,10,11,12,13,14)  
+# Extra shapes in case there are more procedure types
 
 # Determine the final set of shapes to use
 if (num_shapes > length(base_shapes)) {
-  final_shapes <- c(base_shapes, extra_shapes[1:(num_shapes - length(base_shapes))])  # Use backup shapes if needed
+  final_shapes <- c(base_shapes, 
+                    extra_shapes[1:(num_shapes - length(base_shapes))])  
+  # Use backup shapes if needed
 } else {
-  final_shapes <- base_shapes[1:num_shapes]  # Use only the default shapes if they are enough
+  final_shapes <- base_shapes[1:num_shapes]  
+  # Use only the default shapes if they are enough
 }
 
 # Map procedure names to their corresponding shapes
@@ -255,15 +263,22 @@ shape_mapping <- setNames(final_shapes, unique_shapes)
 final_plot <- ggplot() +
   
   # Procedure Events
-  geom_point(data = procedure_data, aes(x = chartdate, y = "Procedure", shape = long_title), size = 5) +
+  geom_point(data = procedure_data, aes(x = chartdate, 
+                                        y = "Procedure", 
+                                        shape = long_title), size = 5) +
   
   # Lab Events (Cross Shape)
-  geom_point(data = lab_data, aes(x = charttime, y = "Lab"), shape = 3, size = 4, stroke = 1.5) +
+  geom_point(data = lab_data, aes(x = charttime, y = "Lab"), 
+             shape = 3, size = 4, stroke = 1.5) +
   
   # ADT timeline
-  geom_segment(data = adt_data, aes(x = intime, xend = outtime, y = "ADT", yend = "ADT", 
-                                    color = careunit, size = ifelse(careunit %in% c("Surgical Intensive Care Unit (SICU)", 
-                                                                                    "Medical Intensive Care Unit (MICU)"), 10, 5))) +
+  geom_segment(data = adt_data, aes(x = intime, xend = outtime, 
+                                    y = "ADT", yend = "ADT", 
+                                    color = careunit, 
+                                    size = ifelse(careunit %in% c("
+                                    Surgical Intensive Care Unit (SICU)", 
+                                    "Medical Intensive Care Unit (MICU)"), 
+                                    10, 5))) +
 
   # Dynamic Shape Assignment
   scale_shape_manual(values = shape_mapping) +  
@@ -282,9 +297,11 @@ final_plot <- ggplot() +
   
   theme_minimal() +
   theme(legend.position = "bottom",  # Move legend to the bottom
-        axis.text.y = element_text(size = 10),  # Ensure Y-axis labels are readable
+        axis.text.y = element_text(size = 10),  
+        # Ensure Y-axis labels are readable
         axis.ticks.y = element_blank()) +
-  guides(color = guide_legend(nrow = 6), shape = guide_legend(nrow = 5))  # Split legend into multiple rows
+  guides(color = guide_legend(nrow = 6), shape = guide_legend(nrow = 5))  
+# Split legend into multiple rows
 
 # Save and display the plot
 ggsave("ADT_plot.png", final_plot, width = 15, height = 6, dpi = 300)
@@ -408,27 +425,24 @@ vital_data_filtered <- vital_data %>%
   group_by(stay_id) %>%
   ungroup()
 
-
-# Create the Plot with facet_grid
-vital_plot <- ggplot(vital_data_filtered, aes(x = charttime, y = valuenum, color = vital_type)) +
+vital_plot <- ggplot(vital_data_filtered, aes(x = charttime, 
+                                              y = valuenum, 
+                                              color = vital_type)) +
   geom_point(size = 1.5) +
   geom_line(aes(group = vital_type), size = 0.7) + 
   scale_color_manual(values = vital_colors) +
   scale_x_datetime(labels = date_format("%b %d %H:%M"), breaks = "6 hours") + 
-  facet_grid(vital_type ~ stay_id, scales = "free_y", switch = "y")
-
-
-  labs(title = paste("Patient", unique(vital_data$subject_id), "ICU Stays - Vitals"),
+  facet_grid(vital_type ~ stay_id, scales = "free_y", switch = "y") +
+  labs(title = paste("Patient", 
+                     unique(vital_data$subject_id), "ICU Stays - Vitals"),
        x = "ICU Admission (Intime) and Discharge (Outtime)",
-       y = "Value",
-       color = "Vital Type") +
+       y = "Value") +  
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         strip.placement = "outside",
         strip.text.y.right = element_text(size = 12, face = "bold"),
-        legend.position = "right")
+        legend.position = "none") 
 
-# save img
 ggsave("icu_vitals.png", vital_plot, width = 12, height = 6, dpi = 300)
 print(vital_plot)
 
@@ -480,7 +494,6 @@ print(paste("Number of unique subjects:", num_unique_subjects))
 
 ```{r}
 library(plotly)
-
 # Count ICU stays per subject
 icu_stays_per_subject <- icustays_tble %>%
   group_by(subject_id) %>%
@@ -498,10 +511,11 @@ p <- ggplot(icu_stays_per_subject, aes(x = num_stays)) +
        y = "Count of Subjects") +
   theme_minimal()  # Use a clean theme for better readability
 
+#print(p)
 # Convert to an interactive plot
 ggplotly(p)
 
-rm(icu_stays_per_subject,num_unique_subjects)
+rm(icu_stays_per_subject)
 ```
 
 The histogram shows the distribution of ICU stays per subject (patient). Most subjects have only one ICU stay, with a sharp drop-off as the number of stays increases. The majority of patients (49,124 subjects) had a single ICU stay, while a much smaller proportion experienced multiple ICU stays. This suggests that repeated ICU admissions are uncommon, but some patients do return multiple times, possibly due to chronic conditions, post-surgical complications, or severe illnesses requiring multiple admissions. The long tail of the distribution indicates that a few patients had 10 or more ICU stays, though these cases are rare.
@@ -563,6 +577,7 @@ p <- ggplot(admissions_per_patient, aes(x = num_admissions)) +
        y = "Count of Patients") +
   theme_minimal()  # Use a clean theme for better readability
 
+#print(p)
 # Convert to an interactive plot
 ggplotly(p)
 
@@ -588,6 +603,7 @@ p_hour <- ggplot(admissions_tble, aes(x = admission_hour)) +
        y = "Count of Admissions") +
   theme_minimal()
 
+#print(p_hour)
 # Convert to interactive plot
 ggplotly(p_hour)
 
@@ -612,6 +628,7 @@ p_minute <- ggplot(admissions_tble, aes(x = admission_minute)) +
        y = "Count of Admissions") +
   theme_minimal()
 
+#print(p_minute)
 # Convert to interactive plot
 ggplotly(p_minute)
 ```
@@ -637,6 +654,7 @@ p_los <- ggplot(admissions_tble, aes(x = length_of_stay)) +
        y = "Count of Admissions") +
   theme_minimal()
 
+#print(p_los)
 # Convert to interactive plot
 ggplotly(p_los)
 
@@ -686,9 +704,10 @@ p_gender <- ggplot(gender_dist, aes(x = gender, y = n, fill = gender)) +
        y = "Count of Patients") +
   theme_minimal()
 
+
+#print(p_gender)
 # Convert to interactive plot
 ggplotly(p_gender)
-
 rm(gender_dist)
 ```
 
@@ -704,6 +723,7 @@ p_age <- ggplot(patients_tble, aes(x = anchor_age)) +
        y = "Count of Patients") +
   theme_minimal()
 
+#print(p_age)
 # Convert to interactive plot
 ggplotly(p_age)
 
@@ -803,7 +823,7 @@ dbExecute(con, "CREATE TABLE labevents_pivoted AS
                        MAX(CASE 
                        WHEN itemid = 51221 THEN valuenum END) AS hematocrit,
                        MAX(CASE 
-                       WHEN itemid = 51301 THEN valuenum END) AS wbc
+                       WHEN itemid = 51301 THEN valuenum END) AS wbc,
                 FROM latest_labs
                 GROUP BY subject_id, stay_id")
 
@@ -821,6 +841,7 @@ print(head(labevents_tble, 10))
 dbDisconnect(con, shutdown = TRUE)
 
 rm(con)
+gc()
 ```
 
 ## Q6. Vitals from charted events
@@ -860,6 +881,11 @@ duckdb_table_icustays <- tbl(
 result_icustays <- duckdb_table_icustays %>%
   select(subject_id, stay_id, intime,outtime) %>%  # Select necessary columns
   collect()  # Bring the filtered results into memory as a tibble
+
+dbDisconnect(con)
+gc()
+rm(con,duckdb_table_icustays)
+
 ```
 
 ```{r 6.1}
@@ -874,7 +900,9 @@ dbExecute(con, "CREATE TABLE chartevents_duckdb AS
     'part-0.parquet'
   )
                 WHERE itemid IN (220045, 220179, 220180, 223761, 220210)")
+```
 
+```{r}
 #  Load `icustays_tble` into DuckDB
 dbWriteTable(con, "icustays", result_icustays, overwrite = TRUE)
 ```
@@ -889,35 +917,43 @@ dbExecute(con, "CREATE TABLE latest_vitals_raw AS
                 ON c.subject_id = i.subject_id
                 WHERE c.storetime BETWEEN i.intime AND i.outtime")
 rm(result_icustays)
+
 ```
 
-```{r}
+```{r 6.3}
 dbExecute(con, "CREATE TABLE ranked_vitals AS 
         SELECT *, 
-        ROW_NUMBER() OVER (PARTITION BY subject_id, stay_id, itemid ORDER BY storetime ASC) AS row_num,
-        FIRST_VALUE(storetime) OVER (PARTITION BY subject_id, stay_id, itemid ORDER BY storetime ASC) AS first_storetime
+        ROW_NUMBER() OVER (PARTITION BY subject_id, stay_id, 
+        itemid ORDER BY storetime ASC) AS row_num,
+        FIRST_VALUE(storetime) OVER (PARTITION BY subject_id, stay_id, 
+        itemid ORDER BY storetime ASC) AS first_storetime
         FROM latest_vitals_raw")
+
+
+dbExecute(con, "VACUUM")
 ```
 
-```{r}
+```{r 6.4}
 dbExecute(con, "CREATE TABLE first_vitals AS 
         SELECT * 
         FROM ranked_vitals
         WHERE storetime = first_storetime")
 ```
 
-```{r 6.3}
+```{r 6.5}
 # Select the first measurement (`storetime`) per `itemid` and `stay_id`
 dbExecute(con, "CREATE TABLE latest_vitals_filtered AS
-    SELECT subject_id, stay_id, itemid, storetime, round(AVG(valuenum),2) AS valuenum
+    SELECT subject_id, stay_id, itemid, storetime, 
+    round(AVG(valuenum),2) AS valuenum
     FROM first_vitals
     GROUP BY subject_id, stay_id, itemid, storetime")
 ```
 
-```{r 6.4}
+```{r 6.6}
 # Pivot `itemid` into separate columns (one row per ICU stay)
 latest_vitals <- dbGetQuery(con, "SELECT * FROM latest_vitals_filtered")
 
+rm(con)
 chartevents_tble <- latest_vitals %>%
   select(-storetime) %>%
   pivot_wider(names_from = itemid, values_from = valuenum, 
@@ -941,7 +977,7 @@ colnames(chartevents_tble) <- c(
 rm(latest_vitals)
 ```
 
-```{r 6.5}
+```{r 6.7}
 # Arrange for better readability
 chartevents_tble <- chartevents_tble %>% arrange(subject_id, stay_id)
 
@@ -959,10 +995,6 @@ chartevents_tble <- chartevents_tble[, desired_order]
 options(width = 1000)
 print(head(chartevents_tble, 10))
 
-# disconnect from DuckDB
-dbDisconnect(con, shutdown = TRUE)
-
-rm(con)
 ```
 
 ## Q7. Putting things together
@@ -1044,8 +1076,17 @@ print(head(mimic_icu_cohort, 10))
 
 # Disconnect from the database
 dbDisconnect(con, shutdown = TRUE)
+gc()
+```
 
-rm(con)
+```{r 7.5}
+rm(admissions_tble,duckdb_table_icustays,patients_tble)
+
+rm(base_shapes,patient_id,final_shapes,
+   itemid_labels,itemid_mapping,desired_order,
+   extra_shapes)
+
+rm(icustays_tble,labevents_tble,chartevents_tble)
 ```
 
 ## Q8. Exploratory data analysis (EDA)
@@ -1064,11 +1105,10 @@ Summarize the following information about the ICU stay cohort `mimic_icu_cohort`
 
 Solution:
 
-```{r}
-# Load necessary libraries
-library(ggplot2)
-library(dplyr)
+#### Length of ICU stay `los` vs demographic variables (race, insurance, marital_status, gender, age at intime)
 
+```{r 8.1}
+# LOS vs Gender
 # Remove extreme outliers for better visualization (e.g., focus on LOS < 50 days)
 mimic_icu_cohort_filtered <- mimic_icu_cohort %>%
   filter(los < quantile(los, 0.99, na.rm = TRUE))  # Remove top 1% outliers
@@ -1080,11 +1120,13 @@ race_order <- mimic_icu_cohort_filtered %>%
   arrange(median_los) %>%
   pull(race)
 
-mimic_icu_cohort_filtered$race <- factor(mimic_icu_cohort_filtered$race, levels = race_order)
+mimic_icu_cohort_filtered$race <- factor(mimic_icu_cohort_filtered$race, 
+                                         levels = race_order)
 
 # Improved boxplot with better visibility
 ggplot(mimic_icu_cohort_filtered, aes(x = race, y = los, fill = race)) +
-  geom_boxplot(outlier.shape = NA, alpha = 0.7) +  # Reduce opacity for better visibility
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +  
+  # Reduce opacity for better visibility
   coord_flip() +  # Flip to horizontal for better readability
   theme_minimal() +  # Cleaner theme
   theme(
@@ -1097,12 +1139,148 @@ ggplot(mimic_icu_cohort_filtered, aes(x = race, y = los, fill = race)) +
     y = "Length of Stay (days)"
   )
 
+```
 
-# Boxplot: LOS vs Gender
-ggplot(mimic_icu_cohort, aes(x = gender, y = los, fill = gender)) +
-  geom_boxplot() +
-  labs(title = "ICU Length of Stay by Gender", x = "Gender", y = "Length of Stay (days)")
+```{r 8.2}
+# LOS vs Gender
+# Improved boxplot + jitter
+ggplot(mimic_icu_cohort_filtered, aes(x = gender, y = los, 
+                                      fill = gender)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7, width = 0.5) +  
+  # Hide extreme outliers, adjust width
+  geom_jitter(width = 0.15, alpha = 0.05, size = 1.2, 
+              color = "blue") +  # More transparency, smaller points
+  theme_minimal() +
+  labs(title = "ICU Length of Stay by Gender", x = "Gender", 
+       y = "Length of Stay (days)") +
+  scale_fill_manual(values = c("F" = "lightcoral", "M" = "steelblue")) +  
+  theme(legend.position = "none")
 
+# Alternative: Violin plot for better visualization
+ggplot(mimic_icu_cohort_filtered, aes(x = gender, y = los, fill = gender)) +
+  geom_violin(alpha = 0.6, trim = TRUE) +  # Smooth density distribution
+  geom_boxplot(width = 0.2, fill = "white", outlier.shape = NA) +  
+  # Overlay boxplot inside violin
+  theme_minimal() +
+  labs(title = "ICU Length of Stay by Gender (Violin + Boxplot)", 
+       x = "Gender", y = "Length of Stay (days)") +
+  scale_fill_manual(values = c("F" = "lightcoral", "M" = "steelblue")) +  
+  theme(legend.position = "none")
+```
 
+Most ICU stays are relatively short, with patients mainly concentrated at the bottom, while the slender tail indicates that a small number of patients have abnormally prolonged ICU stays. The distribution shapes of the two genders are similar, indicating that the hospitalization time patterns of males and females in the ICU are basically the same, with no significant gender differences.
 
+```{r 8.3}
+# LOS vs Insurance
+ggplot(mimic_icu_cohort_filtered, aes(x = reorder(insurance, 
+                                                  los, median, na.rm = TRUE), 
+                                      y = los, fill = insurance)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "ICU Length of Stay by Insurance", 
+       x = "Insurance Type", y = "Length of Stay (days)") +
+  theme(legend.position = "none")
+```
+
+```{r 8.4}
+# LOS vs Marital Status
+ggplot(mimic_icu_cohort_filtered, aes(x = reorder(marital_status, los, 
+                                                  median, na.rm = TRUE), 
+                                      y = los, fill = marital_status)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "ICU Length of Stay by Marital Status", x = "Marital Status", 
+       y = "Length of Stay (days)") +
+  theme(legend.position = "none")
+```
+
+```{r 8.5}
+# Scatterplot: LOS vs Age
+ggplot(mimic_icu_cohort_filtered, aes(x = anchor_age, y = los)) +
+  geom_point(alpha = 0.2, color = "blue", size = 0.8) +  
+  geom_smooth(method = "loess", color = "red", se = TRUE) +
+  theme_minimal() +
+  labs(title = "ICU Length of Stay vs Age", x = "Age at Admission", 
+       y = "Length of Stay (days)") +
+  scale_y_continuous(limits = c(0, 50))  
+```
+
+#### Length of ICU stay los vs the last available lab measurements before ICU stay
+
+```{r 8.6}
+# Convert from wide format to long format
+mimic_icu_long <- mimic_icu_cohort_filtered %>%
+  pivot_longer(cols = c("bicarbonate", "chloride", "creatinine", "glucose",
+                        "potassium", "sodium", "hematocrit", "wbc"),
+               names_to = "item_name", values_to = "valuenum") %>%
+  filter(!is.na(valuenum) & !is.na(los))  # Remove missing values
+
+```
+
+```{r}
+# Sample a smaller subset to improve performance
+mimic_icu_sampled <- mimic_icu_long %>%
+  slice_sample(n = 50000)  # Adjust this number as needed
+
+# LOS vs Valuenum (Grouped by Lab Test)
+ggplot(mimic_icu_sampled, aes(x = valuenum, y = los, color = item_name)) +
+  geom_point(alpha = 0.3, size = 0.5) +  
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed") +  
+  facet_wrap(~ item_name, scales = "free_x") +  # Facet by lab test
+  theme_minimal() +
+  labs(title = "ICU LOS vs Last Available Lab Measurements",
+       x = "Lab Measurement (Valuenum)", y = "Length of ICU Stay (days)", 
+       color = "Lab Test") +
+  theme(legend.position = "none")  # Hide legend if unnecessary
+
+rm(mimic_icu_long,mimic_icu_sampled)
+
+```
+
+#### Length of ICU stay los vs the first vital measurements within the ICU stay
+
+```{r}
+# Convert from wide format to long format using correct column names
+mimic_icu_long <- mimic_icu_cohort_filtered %>%
+  pivot_longer(cols = c("heart_rate", "non-invasive_blood_pressure_diastolic", 
+                        "non-invasive_blood_pressure_systolic", 
+                        "respiratory_rate", 
+                        "temperature_fahrenheit"),
+               names_to = "item_name", values_to = "valuenum") %>%
+  filter(!is.na(valuenum) & !is.na(los))  # Remove missing values
+
+```
+
+```{r 8.7}
+# Sample a smaller subset to improve performance
+mimic_icu_sampled <- mimic_icu_long %>%
+  slice_sample(n = 50000)  # Adjust this number as needed
+
+# LOS vs Valuenum (Grouped by Lab Test)
+ggplot(mimic_icu_sampled, aes(x = valuenum, y = los, color = item_name)) +
+  geom_point(alpha = 0.5) +  # Reduce opacity for better visualization
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed") +  
+  facet_wrap(~ item_name, scales = "free_x") +  
+  theme_minimal() +
+  labs(title = "ICU LOS vs First Vital Measurements",
+       x = "Vital Measurement (Valuenum)", y = "Length of ICU Stay (days)", 
+       color = "Vital Test") +
+  theme(legend.position = "none")  # Hide redundant legend
+rm(mimic_icu_long,mimic_icu_sampled)
+
+```
+
+#### Length of ICU stay los vs first ICU unit
+
+```{r}
+ggplot(mimic_icu_cohort_filtered, aes(x = first_careunit, y = los, 
+                                      fill = first_careunit)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA) +  # Avoid extreme outliers
+  theme_minimal() +
+  labs(title = "ICU LOS vs First ICU Unit",
+       x = "First ICU Unit", y = "Length of ICU Stay (days)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position = "none")
 ```
