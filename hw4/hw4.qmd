@@ -1,7 +1,7 @@
 ---
 title: "Biostat 203B Homework 4"
 subtitle: "Due Mar 9 @ 11:59PM"
-author: "Your Name and UID"
+author: "Wenqiang Ge UID:106371961"
 format:
   html:
     theme: cosmo
@@ -11,6 +11,13 @@ format:
     toc-depth: 4
     toc-location: left
     code-fold: false
+  # pdf:
+  #   documentclass: article
+  #   toc: true
+  #   toc-depth: 2
+  #   keep-tex: true
+  #   number-sections: true
+  #   highlight-style: tango
 ---
 
 Display machine information:
