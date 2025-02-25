@@ -1,6 +1,6 @@
 *Wenqiang Ge*
 
-### Overall Grade: 273/280
+### Overall Grade: 274/280
 
 ### Quality of report: 10/10
 
@@ -48,12 +48,11 @@
 	- How many rows? (-2)
 - Q8 (40/40) This question is open ended. Any graphical summaries are good. Since this question didn't explicitly ask for explanations, it's fine students don't give them. Students who give insights should be encouraged.
 	    
-### Usage of Git: 9/10
+### Usage of Git: 10/10
 
 -   Are branches (`main` and `develop`) correctly set up? Is the hw submission put into the `main` branch?
 
 -   Are there enough commits (>=5) in develop branch? Are commit messages clear? The commits should span out not clustered the day before deadline. 
-	- Commits do not span out. (-1)
 -   Is the hw submission tagged? 
 
 -   Are the folders (`hw1`, `hw2`, ...) created correctly? 
