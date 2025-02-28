@@ -1,0 +1,11 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+# ignore RProj 
+*.Rproj
+# ignore json 
+*.json
+
+# ignore gitignore.txt  
+gitignore.txt
