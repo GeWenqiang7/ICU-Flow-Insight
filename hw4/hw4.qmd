@@ -21,15 +21,19 @@ format:
 ---
 
 Display machine information:
+
 ```{r}
 sessionInfo()
 ```
+
 Display my machine memory.
+
 ```{r}
 memuse::Sys.meminfo()
 ```
 
 Load database libraries and the tidyverse frontend:
+
 ```{r}
 library(bigrquery)
 library(dbplyr)
@@ -39,20 +43,23 @@ library(gtsummary)
 library(tidyverse)
 ```
 
-## Q1. Compile the ICU cohort in HW3 from the Google BigQuery database 
+## Q1. Compile the ICU cohort in HW3 from the Google BigQuery database
 
 Below is an outline of steps. In this homework, we exclusively work with the BigQuery database and should not use any MIMIC data files stored on our local computer. Transform data as much as possible in BigQuery database and `collect()` the tibble **only at the end of Q1.7**.
 
 ### Q1.1 Connect to BigQuery
 
 Authenticate with BigQuery using the service account token. Please place the service account token (shared via BruinLearn) in the working directory (same folder as your qmd file). Do **not** ever add this token to your Git repository. If you do so, you will lose 50 points.
+
 ```{r}
 # path to the service account token 
 satoken <- "biostat-203b-2025-winter-4e58ec6e5579.json"
 # BigQuery authentication using service account
 bq_auth(path = satoken)
 ```
+
 Connect to BigQuery database `mimiciv_3_1` in GCP (Google Cloud Platform), using the project billing account `biostat-203b-2025-winter`.
+
 ```{r}
 # connect to the BigQuery database `biostat-203b-2025-mimiciv_3_1`
 con_bq <- dbConnect(
@@ -63,7 +70,9 @@ con_bq <- dbConnect(
 )
 con_bq
 ```
+
 List all tables in the `mimiciv_3_1` database.
+
 ```{r}
 dbListTables(con_bq)
 ```
@@ -71,6 +80,7 @@ dbListTables(con_bq)
 ### Q1.2 `icustays` data
 
 Connect to the `icustays` table.
+
 ```{r}
 # full ICU stays table
 icustays_tble <- tbl(con_bq, "icustays") |>
@@ -82,42 +92,199 @@ icustays_tble <- tbl(con_bq, "icustays") |>
 ### Q1.3 `admissions` data
 
 Connect to the `admissions` table.
+
 ```{r}
 # # TODO
-# admissions_tble <- 
+admissions_tble <- tbl(con_bq, "admissions") |>
+  print(width = Inf) 
 ```
 
 ### Q1.4 `patients` data
 
 Connect to the `patients` table.
+
 ```{r}
 # # TODO
-# patients_tble <-
+patients_tble <- tbl(con_bq, "patients") |>
+  print(width = Inf)
 ```
 
 ### Q1.5 `labevents` data
 
-Connect to the `labevents` table and retrieve a subset that only contain subjects who appear in `icustays_tble` and the lab items listed in HW3. Only keep the last lab measurements (by `storetime`) before the ICU stay and pivot lab items to become variables/columns. Write all steps in _one_ chain of pipes.
+Connect to the `labevents` table and retrieve a subset that only contain subjects who appear in `icustays_tble` and the lab items listed in HW3. Only keep the last lab measurements (by `storetime`) before the ICU stay and pivot lab items to become variables/columns. Write all steps in *one* chain of pipes.
+
 ```{r}
-# # TODO
-# labevents_tble <- 
+# Define the desired column order (ensuring subject_id and stay_id appear first)
+column_order <- c("subject_id", "stay_id", 
+                  "bicarbonate", "chloride", 
+                  "creatinine", "glucose", 
+                  "potassium", "sodium", 
+                  "hematocrit", "wbc")
+
+# Load labevents data from BigQuery and filter for relevant lab tests
+labevents_tble <- tbl(con_bq, "labevents") |>
+  
+  # Keep only the selected lab test item IDs
+  filter(itemid %in% c(50912, 50971, 50983, 50902, 
+                       50882, 51221, 51301, 50931)) |>
+  
+  # Select relevant columns for processing
+  select(subject_id, storetime, itemid, valuenum) |>
+  
+  # Join with ICU stay data to get stay_id and admission time
+  inner_join(
+    select(icustays_tble, subject_id, stay_id, intime),
+    by = "subject_id") |>
+  
+  # Keep only lab results recorded before ICU admission time
+  filter(storetime < intime) |>
+  
+  # Group by subject, stay, and itemid to retain the most recent measurement
+  group_by(subject_id, stay_id, itemid) |>
+  slice_max(order_by = storetime) |>
+  ungroup() |>  # Remove grouping for subsequent operations
+  
+  # Convert itemid numeric codes into meaningful lab test names
+  mutate(itemid = case_when(
+    itemid == 51301 ~ "wbc",
+    itemid == 51221 ~ "hematocrit",
+    itemid == 50983 ~ "sodium",
+    itemid == 50971 ~ "potassium",
+    itemid == 50931 ~ "glucose",
+    itemid == 50912 ~ "creatinine",
+    itemid == 50902 ~ "chloride",
+    itemid == 50882 ~ "bicarbonate"
+  )) |>
+  
+  # Keep only necessary columns after renaming
+  select(subject_id, stay_id, itemid, valuenum) |> 
+  
+  # Convert from long format to wide format with mean aggregation for duplicates
+  pivot_wider(names_from = itemid, 
+              values_from = valuenum, 
+              values_fn = mean) |>
+  
+  # Ensure the final column order follows the defined structure
+  select(all_of(column_order)) |> 
+
+  # Arrange rows for better readability
+  arrange(subject_id, stay_id) |>
+  
+  # Print the result with a wide display to prevent truncation
+  print(width = Inf)
+```
+
+```{r}
+# Check the number of rows
+labevents_tble |> 
+  tally() |> 
+  pull(n)
 ```
 
 ### Q1.6 `chartevents` data
 
-Connect to `chartevents` table and retrieve a subset that only contain subjects who appear in `icustays_tble` and the chart events listed in HW3. Only keep the first chart events (by `storetime`) during ICU stay and pivot chart events to become variables/columns. Write all steps in _one_ chain of pipes.
+Connect to `chartevents` table and retrieve a subset that only contain subjects who appear in `icustays_tble` and the chart events listed in HW3. Only keep the first chart events (by `storetime`) during ICU stay and pivot chart events to become variables/columns. Write all steps in *one* chain of pipes.
+
 ```{r}
 # # TODO
-# chartevents_tble <- 
+# Define the desired column order (ensuring subject_id and stay_id appear first)
+column_order <- c("subject_id", "stay_id", 
+                  "heart_rate", 
+                  "non-invasive_blood_pressure_systolic", 
+                  "non-invasive_blood_pressure_diastolic", 
+                  "temperature_fahrenheit", 
+                  "respiratory_rate")
+
+# Load chartevents data from BigQuery and filter for relevant vital measurements
+chartevents_tble <- tbl(con_bq, "chartevents") |>
+  
+  # Keep only the selected vital measurements item IDs
+  filter(itemid %in% c(220045, 220179, 220180, 
+                       223761, 220210)) |>
+  
+  # Select relevant columns for processing
+  select(subject_id, storetime, itemid, valuenum) |>
+  
+  # Join with ICU stay data to get stay_id and ICU intime and outtime
+  inner_join(
+    select(icustays_tble, subject_id, 
+           stay_id, intime,outtime),
+    by = "subject_id") |>
+  
+  # Keep only lab results recorded in ICU 
+  filter(storetime >= intime ) |>
+  filter(storetime <= outtime ) |>
+
+  # Group by subject, stay, and itemid to retain the earliest measurement
+  group_by(subject_id, stay_id, itemid) |>
+  slice_min(order_by = storetime) |>
+  ungroup() |>  # Remove grouping for subsequent operations
+  
+  # Convert itemid numeric codes into meaningful lab test names
+  mutate(itemid = case_when(
+    itemid == 220045 ~ "heart_rate",
+    itemid == 220179 ~ "non-invasive_blood_pressure_systolic",
+    itemid == 220180 ~ "non-invasive_blood_pressure_diastolic",
+    itemid == 223761 ~ "temperature_fahrenheit",
+    itemid == 220210 ~ "respiratory_rate"
+  )) |>
+  
+  # Keep only necessary columns after renaming
+  select(subject_id, stay_id, itemid, valuenum) |> 
+  
+  # Convert from long format to wide format with mean aggregation for duplicates
+  pivot_wider(names_from = itemid, 
+              values_from = valuenum, 
+              values_fn = ~ round(mean(.), 1)) |>
+  
+  # Ensure the final column order follows the defined structure
+  select(all_of(column_order)) |> 
+
+  # Arrange rows for better readability
+  arrange(subject_id, stay_id) |>
+  
+  # Print the result with a wide display to prevent truncation
+  print(width = Inf)
+```
+
+```{r}
+# Check the number of rows
+chartevents_tble |> 
+  tally() |> 
+  pull(n)
 ```
 
 ### Q1.7 Put things together
 
-This step is similar to Q7 of HW3. Using _one_ chain of pipes `|>` to perform following data wrangling steps: (i) start with the `icustays_tble`, (ii) merge in admissions and patients tables, (iii) keep adults only (age at ICU intime >= 18), (iv) merge in the labevents and chartevents tables, (v) `collect` the tibble, (vi) sort `subject_id`, `hadm_id`, `stay_id` and `print(width = Inf)`.
+This step is similar to Q7 of HW3. Using *one* chain of pipes `|>` to perform following data wrangling steps: (i) start with the `icustays_tble`, (ii) merge in admissions and patients tables, (iii) keep adults only (age at ICU intime \>= 18), (iv) merge in the labevents and chartevents tables, (v) `collect` the tibble, (vi) sort `subject_id`, `hadm_id`, `stay_id` and `print(width = Inf)`.
 
 ```{r}
 # # TODO
-# mimic_icu_cohort <- 
+mimic_icu_cohort <- icustays_tble |>
+  
+  # Merge with admissions and patients tables
+  left_join(select(admissions_tble, -subject_id), by = "hadm_id") |>
+  
+  # Merge with patients table 
+  left_join(patients_tble, by = "subject_id") |>
+  
+  # Keep only adults (age at ICU intime >= 18)
+  mutate(age = year(intime)- anchor_year + anchor_age) |>
+  filter(age >= 18) |>
+  
+  # Merge with labevents and chartevents tables
+  left_join(labevents_tble, by = c("subject_id", "stay_id")) |>
+  left_join(chartevents_tble, by = c("subject_id", "stay_id")) |>
+  
+  # Collect data into memory
+  collect() |>
+  
+  # Sort by subject_id, hadm_id, stay_id
+  arrange(subject_id, hadm_id, stay_id) |>
+  
+  # Print the full width to ensure readability
+  print(width = Inf)
+
 ```
 
 ### Q1.8 Preprocessing
@@ -126,11 +293,16 @@ Perform the following preprocessing steps. (i) Lump infrequent levels into "Othe
 
 Hint: Below is a numerical summary of my tibble after preprocessing:
 
-<iframe width=95% height="500" src="./mimic_icu_cohort_gtsummary.html"></iframe>
+<iframe width="95%" height="500" src="./mimic_icu_cohort_gtsummary.html">
+
+</iframe>
+
+------------------------------------------------------------------------
 
 ### Q1.9 Save the final tibble
 
 Save the final tibble to an R data file `mimic_icu_cohort.rds` in the `mimiciv_shiny` folder.
+
 ```{r}
 # make a directory mimiciv_shiny
 if (!dir.exists("mimiciv_shiny")) {
@@ -140,16 +312,18 @@ if (!dir.exists("mimiciv_shiny")) {
 mimic_icu_cohort |>
   write_rds("mimiciv_shiny/mimic_icu_cohort.rds", compress = "gz")
 ```
+
 Close database connection and clear workspace.
+
 ```{r}
 if (exists("con_bq")) {
   dbDisconnect(con_bq)
 }
 rm(list = ls())
 ```
+
 Although it is not a good practice to add big data files to Git, for grading purpose, please add `mimic_icu_cohort.rds` to your Git repository.
 
 ## Q2. Shiny app
 
 Develop a Shiny app for exploring the ICU cohort data created in Q1. The app should reside in the `mimiciv_shiny` folder. The app should contain at least two tabs. One tab provides easy access to the graphical and numerical summaries of variables (demographics, lab measurements, vitals) in the ICU cohort, using the `mimic_icu_cohort.rds` you curated in Q1. The other tab allows user to choose a specific patient in the cohort and display the patient's ADT and ICU stay information as we did in Q1 of HW3, by dynamically retrieving the patient's ADT and ICU stay information from BigQuery database. Again, do **not** ever add the BigQuery token to your Git repository. If you do so, you will lose 50 points.
-
