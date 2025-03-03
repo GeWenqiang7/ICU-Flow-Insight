@@ -41,6 +41,7 @@ library(DBI)
 library(gt)
 library(gtsummary)
 library(tidyverse)
+library(forcats)
 ```
 
 ## Q1. Compile the ICU cohort in HW3 from the Google BigQuery database
@@ -284,7 +285,6 @@ mimic_icu_cohort <- icustays_tble |>
   
   # Print the full width to ensure readability
   print(width = Inf)
-
 ```
 
 ### Q1.8 Preprocessing
@@ -298,6 +298,64 @@ Hint: Below is a numerical summary of my tibble after preprocessing:
 </iframe>
 
 ------------------------------------------------------------------------
+
+```{r}
+# Process mimic_icu_cohort data
+mimic_icu_cohort <- mimic_icu_cohort |>
+  mutate(
+    first_careunit = fct_lump(first_careunit, n = 4),
+    last_careunit = fct_lump(last_careunit, n = 4),
+    admission_type = fct_lump(admission_type, n = 4),
+    admission_location = fct_lump(admission_location, n = 3),
+    discharge_location = fct_lump(discharge_location, n = 4)
+    ) |>
+  
+  # Sort by subject_id, hadm_id, stay_id
+  arrange(subject_id, hadm_id, stay_id) |>
+  
+  # Print the full width to ensure readability
+  print(width = Inf)
+```
+
+```{r}
+# Collapse race categories into ASIAN, BLACK, HISPANIC, WHITE, and Other
+mimic_icu_cohort <- mimic_icu_cohort |>
+  mutate(
+    race = fct_collapse(race,  # Collapse race categories
+      ASIAN = c("ASIAN", "ASIAN - CHINESE", 
+                "ASIAN - JAPANESE", "ASIAN - INDIAN"),
+      BLACK = c("BLACK", "BLACK/AFRICAN AMERICAN"),
+      HISPANIC = c("HISPANIC", "HISPANIC/LATINO"),
+      WHITE = c("WHITE", "WHITE - RUSSIAN"),
+      Other = c("OTHER", "UNKNOWN", "MIXED", 
+                "NATIVE AMERICAN", "MIDDLE EASTERN", 
+                "PACIFIC ISLANDER")
+    )
+  ) |>
+  
+  # Print the full width to ensure readability
+  print(width = Inf)
+
+```
+
+```{r}
+# Step (iii): Create los_long variable
+mimic_icu_cohort <- mimic_icu_cohort |>
+  mutate(
+    los_long = los >= 2  # TRUE if length of stay is 2 days or more, FALSE otherwise
+  )
+```
+
+```{r}
+mimic_icu_cohort |> 
+  select(-c(subject_id, hadm_id, stay_id,
+            intime, outtime, admittime,dischtime,
+            deathtime, admit_provider_id, edregtime,
+            edouttime, anchor_age, anchor_year, 
+            anchor_year_group)) |>
+  tbl_summary(by = los_long)
+
+```
 
 ### Q1.9 Save the final tibble
 
