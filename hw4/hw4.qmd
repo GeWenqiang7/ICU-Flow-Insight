@@ -3,21 +3,21 @@ title: "Biostat 203B Homework 4"
 subtitle: "Due Mar 9 @ 11:59PM"
 author: "Wenqiang Ge UID:106371961"
 format:
-  # html:
-  #   theme: cosmo
-  #   embed-resources: true
-  #   number-sections: false
-  #   toc: true
-  #   toc-depth: 4
-  #   toc-location: left
-  #   code-fold: false
-  pdf:
-    documentclass: article
+  html:
+    theme: cosmo
+    embed-resources: true
+    number-sections: false
     toc: true
-    toc-depth: 2
-    keep-tex: true
-    number-sections: true
-    highlight-style: tango
+    toc-depth: 4
+    toc-location: left
+    code-fold: false
+  # pdf:
+  #   documentclass: article
+  #   toc: true
+  #   toc-depth: 2
+  #   keep-tex: true
+  #   number-sections: true
+  #   highlight-style: tango
 ---
 
 Display machine information:
@@ -342,7 +342,8 @@ mimic_icu_cohort <- mimic_icu_cohort |>
 # Step (iii): Create los_long variable
 mimic_icu_cohort <- mimic_icu_cohort |>
   mutate(
-    los_long = los >= 2  # TRUE if length of stay is 2 days or more, FALSE otherwise
+    los_long = los >= 2  
+    # TRUE if length of stay is 2 days or more, FALSE otherwise
   )
 ```
 
