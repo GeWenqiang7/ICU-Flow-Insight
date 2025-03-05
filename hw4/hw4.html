@@ -3104,7 +3104,7 @@ loaded via a namespace (and not attached):
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>memuse<span class="sc">::</span><span class="fu">Sys.meminfo</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Totalram:  7.686 GiB 
-Freeram:   6.165 GiB </code></pre>
+Freeram:   6.018 GiB </code></pre>
 </div>
 </div>
 <p>Load database libraries and the tidyverse frontend:</p>
@@ -3129,7 +3129,8 @@ Freeram:   6.165 GiB </code></pre>
 ✖ dplyr::sql()    masks dbplyr::sql()
 ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(forcats)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(forcats)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="q1.-compile-the-icu-cohort-in-hw3-from-the-google-bigquery-database" class="level2">
 <h2 class="anchored" data-anchor-id="q1.-compile-the-icu-cohort-in-hw3-from-the-google-bigquery-database">Q1. Compile the ICU cohort in HW3 from the Google BigQuery database</h2>
@@ -3594,8 +3595,8 @@ ORDER BY is ignored in subqueries without LIMIT
 <span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(patients_tble, <span class="at">by =</span> <span class="st">&quot;subject_id&quot;</span>) <span class="sc">|&gt;</span></span>
 <span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>  </span>
 <span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Keep only adults (age at ICU intime &gt;= 18)</span></span>
-<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">age =</span> <span class="fu">year</span>(intime)<span class="sc">-</span> anchor_year <span class="sc">+</span> anchor_age) <span class="sc">|&gt;</span></span>
-<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(age <span class="sc">&gt;=</span> <span class="dv">18</span>) <span class="sc">|&gt;</span></span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">age_intime =</span> <span class="fu">year</span>(intime)<span class="sc">-</span> anchor_year <span class="sc">+</span> anchor_age) <span class="sc">|&gt;</span></span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(age_intime <span class="sc">&gt;=</span> <span class="dv">18</span>) <span class="sc">|&gt;</span></span>
 <span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>  </span>
 <span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Merge with labevents and chartevents tables</span></span>
 <span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(labevents_tble, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;subject_id&quot;</span>, <span class="st">&quot;stay_id&quot;</span>)) <span class="sc">|&gt;</span></span>
@@ -3707,30 +3708,30 @@ ORDER BY is ignored in subqueries without LIMIT
  8                    1 F              68        2122 2008 - 2010      
  9                    0 F              53        2156 2008 - 2010      
 10                    0 M              56        2162 2020 - 2022      
-   dod          age bicarbonate chloride creatinine glucose potassium sodium
-   &lt;date&gt;     &lt;int&gt;       &lt;dbl&gt;    &lt;dbl&gt;      &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt;  &lt;dbl&gt;
- 1 2180-09-09    52          25       95        0.7     102       6.7    126
- 2 2152-01-30    86          26      100        1        85       4.8    137
- 3 2193-08-26    76          21      109        2.3      89       3.9    144
- 4 NA            55          22      108        0.6     112       4.2    142
- 5 NA            55          30      104        0.5      87       4.1    142
- 6 NA            46          NA       98       NA        NA       4.1    139
- 7 2134-12-06    76          28       97        1.3     131       3.9    138
- 8 2131-01-20    77          30       88        1.1     141       4.5    130
- 9 NA            57          24      102        0.9     288       3.5    137
-10 2162-12-11    56          18       NA        3.1      95       6.5    125
-   hematocrit   wbc heart_rate `non-invasive_blood_pressure_systolic`
-        &lt;dbl&gt; &lt;dbl&gt;      &lt;dbl&gt;                                  &lt;dbl&gt;
- 1       41.1   6.9       91                                     84  
- 2       36.1   7.1       78                                    106  
- 3       27.3   5.3       76                                    154  
- 4       38.1  15.7       86                                    151  
- 5       37.4   5.4       79.3                                  156  
- 6       NA    NA         86                                     73  
- 7       31.4  10.4      124.                                   110  
- 8       39.7  12.2       49                                    174. 
- 9       34.9   7.2       80                                     98.5
-10       34.3  16.8      110.                                   112  
+   dod        age_intime bicarbonate chloride creatinine glucose potassium
+   &lt;date&gt;          &lt;int&gt;       &lt;dbl&gt;    &lt;dbl&gt;      &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt;
+ 1 2180-09-09         52          25       95        0.7     102       6.7
+ 2 2152-01-30         86          26      100        1        85       4.8
+ 3 2193-08-26         76          21      109        2.3      89       3.9
+ 4 NA                 55          22      108        0.6     112       4.2
+ 5 NA                 55          30      104        0.5      87       4.1
+ 6 NA                 46          NA       98       NA        NA       4.1
+ 7 2134-12-06         76          28       97        1.3     131       3.9
+ 8 2131-01-20         77          30       88        1.1     141       4.5
+ 9 NA                 57          24      102        0.9     288       3.5
+10 2162-12-11         56          18       NA        3.1      95       6.5
+   sodium hematocrit   wbc heart_rate `non-invasive_blood_pressure_systolic`
+    &lt;dbl&gt;      &lt;dbl&gt; &lt;dbl&gt;      &lt;dbl&gt;                                  &lt;dbl&gt;
+ 1    126       41.1   6.9       91                                     84  
+ 2    137       36.1   7.1       78                                    106  
+ 3    144       27.3   5.3       76                                    154  
+ 4    142       38.1  15.7       86                                    151  
+ 5    142       37.4   5.4       79.3                                  156  
+ 6    139       NA    NA         86                                     73  
+ 7    138       31.4  10.4      124.                                   110  
+ 8    130       39.7  12.2       49                                    174. 
+ 9    137       34.9   7.2       80                                     98.5
+10    125       34.3  16.8      110.                                   112  
    `non-invasive_blood_pressure_diastolic` temperature_fahrenheit
                                      &lt;dbl&gt;                  &lt;dbl&gt;
  1                                    48                     98.7
@@ -3868,30 +3869,30 @@ ORDER BY is ignored in subqueries without LIMIT
  8                    1 F              68        2122 2008 - 2010      
  9                    0 F              53        2156 2008 - 2010      
 10                    0 M              56        2162 2020 - 2022      
-   dod          age bicarbonate chloride creatinine glucose potassium sodium
-   &lt;date&gt;     &lt;int&gt;       &lt;dbl&gt;    &lt;dbl&gt;      &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt;  &lt;dbl&gt;
- 1 2180-09-09    52          25       95        0.7     102       6.7    126
- 2 2152-01-30    86          26      100        1        85       4.8    137
- 3 2193-08-26    76          21      109        2.3      89       3.9    144
- 4 NA            55          22      108        0.6     112       4.2    142
- 5 NA            55          30      104        0.5      87       4.1    142
- 6 NA            46          NA       98       NA        NA       4.1    139
- 7 2134-12-06    76          28       97        1.3     131       3.9    138
- 8 2131-01-20    77          30       88        1.1     141       4.5    130
- 9 NA            57          24      102        0.9     288       3.5    137
-10 2162-12-11    56          18       NA        3.1      95       6.5    125
-   hematocrit   wbc heart_rate `non-invasive_blood_pressure_systolic`
-        &lt;dbl&gt; &lt;dbl&gt;      &lt;dbl&gt;                                  &lt;dbl&gt;
- 1       41.1   6.9       91                                     84  
- 2       36.1   7.1       78                                    106  
- 3       27.3   5.3       76                                    154  
- 4       38.1  15.7       86                                    151  
- 5       37.4   5.4       79.3                                  156  
- 6       NA    NA         86                                     73  
- 7       31.4  10.4      124.                                   110  
- 8       39.7  12.2       49                                    174. 
- 9       34.9   7.2       80                                     98.5
-10       34.3  16.8      110.                                   112  
+   dod        age_intime bicarbonate chloride creatinine glucose potassium
+   &lt;date&gt;          &lt;int&gt;       &lt;dbl&gt;    &lt;dbl&gt;      &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt;
+ 1 2180-09-09         52          25       95        0.7     102       6.7
+ 2 2152-01-30         86          26      100        1        85       4.8
+ 3 2193-08-26         76          21      109        2.3      89       3.9
+ 4 NA                 55          22      108        0.6     112       4.2
+ 5 NA                 55          30      104        0.5      87       4.1
+ 6 NA                 46          NA       98       NA        NA       4.1
+ 7 2134-12-06         76          28       97        1.3     131       3.9
+ 8 2131-01-20         77          30       88        1.1     141       4.5
+ 9 NA                 57          24      102        0.9     288       3.5
+10 2162-12-11         56          18       NA        3.1      95       6.5
+   sodium hematocrit   wbc heart_rate `non-invasive_blood_pressure_systolic`
+    &lt;dbl&gt;      &lt;dbl&gt; &lt;dbl&gt;      &lt;dbl&gt;                                  &lt;dbl&gt;
+ 1    126       41.1   6.9       91                                     84  
+ 2    137       36.1   7.1       78                                    106  
+ 3    144       27.3   5.3       76                                    154  
+ 4    142       38.1  15.7       86                                    151  
+ 5    142       37.4   5.4       79.3                                  156  
+ 6    139       NA    NA         86                                     73  
+ 7    138       31.4  10.4      124.                                   110  
+ 8    130       39.7  12.2       49                                    174. 
+ 9    137       34.9   7.2       80                                     98.5
+10    125       34.3  16.8      110.                                   112  
    `non-invasive_blood_pressure_diastolic` temperature_fahrenheit
                                      &lt;dbl&gt;                  &lt;dbl&gt;
  1                                    48                     98.7
@@ -3923,26 +3924,16 @@ ORDER BY is ignored in subqueries without LIMIT
 <div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Collapse race categories into ASIAN, BLACK, HISPANIC, WHITE, and Other</span></span>
 <span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort <span class="ot">&lt;-</span> mimic_icu_cohort <span class="sc">|&gt;</span></span>
 <span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">race =</span> <span class="fu">fct_collapse</span>(race,  <span class="co"># Collapse race categories</span></span>
-<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a>      <span class="at">ASIAN =</span> <span class="fu">c</span>(<span class="st">&quot;ASIAN&quot;</span>, <span class="st">&quot;ASIAN - CHINESE&quot;</span>, </span>
-<span id="cb38-6"><a href="#cb38-6" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;ASIAN - JAPANESE&quot;</span>, <span class="st">&quot;ASIAN - INDIAN&quot;</span>),</span>
-<span id="cb38-7"><a href="#cb38-7" aria-hidden="true" tabindex="-1"></a>      <span class="at">BLACK =</span> <span class="fu">c</span>(<span class="st">&quot;BLACK&quot;</span>, <span class="st">&quot;BLACK/AFRICAN AMERICAN&quot;</span>),</span>
-<span id="cb38-8"><a href="#cb38-8" aria-hidden="true" tabindex="-1"></a>      <span class="at">HISPANIC =</span> <span class="fu">c</span>(<span class="st">&quot;HISPANIC&quot;</span>, <span class="st">&quot;HISPANIC/LATINO&quot;</span>),</span>
-<span id="cb38-9"><a href="#cb38-9" aria-hidden="true" tabindex="-1"></a>      <span class="at">WHITE =</span> <span class="fu">c</span>(<span class="st">&quot;WHITE&quot;</span>, <span class="st">&quot;WHITE - RUSSIAN&quot;</span>),</span>
-<span id="cb38-10"><a href="#cb38-10" aria-hidden="true" tabindex="-1"></a>      <span class="at">Other =</span> <span class="fu">c</span>(<span class="st">&quot;OTHER&quot;</span>, <span class="st">&quot;UNKNOWN&quot;</span>, <span class="st">&quot;MIXED&quot;</span>, </span>
-<span id="cb38-11"><a href="#cb38-11" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;NATIVE AMERICAN&quot;</span>, <span class="st">&quot;MIDDLE EASTERN&quot;</span>, </span>
-<span id="cb38-12"><a href="#cb38-12" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;PACIFIC ISLANDER&quot;</span>)</span>
-<span id="cb38-13"><a href="#cb38-13" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb38-14"><a href="#cb38-14" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
-<span id="cb38-15"><a href="#cb38-15" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb38-16"><a href="#cb38-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Print the full width to ensure readability</span></span>
-<span id="cb38-17"><a href="#cb38-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(<span class="at">width =</span> <span class="cn">Inf</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning: There was 1 warning in `mutate()`.
-ℹ In argument: `race = fct_collapse(...)`.
-Caused by warning:
-! Unknown levels in `f`: ASIAN - JAPANESE, ASIAN - INDIAN, BLACK, HISPANIC, HISPANIC/LATINO, MIXED, NATIVE AMERICAN, MIDDLE EASTERN, PACIFIC ISLANDER</code></pre>
-</div>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">race =</span> <span class="fu">case_when</span>(</span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(race, <span class="fu">regex</span>(<span class="st">&quot;^ASIAN&quot;</span>, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>)) <span class="sc">~</span> <span class="st">&quot;ASIAN&quot;</span>,</span>
+<span id="cb38-6"><a href="#cb38-6" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(race, <span class="fu">regex</span>(<span class="st">&quot;^BLACK&quot;</span>, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>)) <span class="sc">~</span> <span class="st">&quot;BLACK&quot;</span>,</span>
+<span id="cb38-7"><a href="#cb38-7" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(race, <span class="fu">regex</span>(<span class="st">&quot;HISPANIC|LATINO&quot;</span>, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>)) <span class="sc">~</span> <span class="st">&quot;HISPANIC&quot;</span>,</span>
+<span id="cb38-8"><a href="#cb38-8" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(race, <span class="fu">regex</span>(<span class="st">&quot;^WHITE&quot;</span>, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>)) <span class="sc">~</span> <span class="st">&quot;WHITE&quot;</span>,</span>
+<span id="cb38-9"><a href="#cb38-9" aria-hidden="true" tabindex="-1"></a>      <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">&quot;Other&quot;</span>  <span class="co"># Assign everything else to &quot;Other&quot;</span></span>
+<span id="cb38-10"><a href="#cb38-10" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb38-11"><a href="#cb38-11" aria-hidden="true" tabindex="-1"></a>  )<span class="sc">|&gt;</span></span>
+<span id="cb38-12"><a href="#cb38-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Print the full width to ensure readability</span></span>
+<span id="cb38-13"><a href="#cb38-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(<span class="at">width =</span> <span class="cn">Inf</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 94,458 × 41
    subject_id  hadm_id  stay_id first_careunit                                  
@@ -4006,7 +3997,7 @@ Caused by warning:
  9 PHYSICIAN REFERRAL     HOME HEALTH CARE   Medicare  English  SINGLE        
 10 PHYSICIAN REFERRAL     HOME HEALTH CARE   Medicaid  English  &lt;NA&gt;          
    race  edregtime           edouttime           hospital_expire_flag gender
-   &lt;fct&gt; &lt;dttm&gt;              &lt;dttm&gt;                             &lt;int&gt; &lt;chr&gt; 
+   &lt;chr&gt; &lt;dttm&gt;              &lt;dttm&gt;                             &lt;int&gt; &lt;chr&gt; 
  1 WHITE 2180-07-23 05:54:00 2180-07-23 14:00:00                    0 F     
  2 WHITE 2150-11-02 11:41:00 2150-11-02 19:37:00                    0 F     
  3 BLACK 2189-06-27 06:25:00 2189-06-27 08:42:00                    0 F     
@@ -4017,18 +4008,18 @@ Caused by warning:
  8 BLACK 2131-01-07 13:36:00 2131-01-07 22:13:00                    1 F     
  9 Other NA                  NA                                     0 F     
 10 Other 2162-02-17 19:35:00 2162-02-17 23:30:00                    0 M     
-   anchor_age anchor_year anchor_year_group dod          age bicarbonate
-        &lt;int&gt;       &lt;int&gt; &lt;chr&gt;             &lt;date&gt;     &lt;int&gt;       &lt;dbl&gt;
- 1         52        2180 2014 - 2016       2180-09-09    52          25
- 2         86        2150 2008 - 2010       2152-01-30    86          26
- 3         73        2186 2008 - 2010       2193-08-26    76          21
- 4         55        2157 2011 - 2013       NA            55          22
- 5         55        2157 2011 - 2013       NA            55          30
- 6         46        2110 2011 - 2013       NA            46          NA
- 7         73        2131 2017 - 2019       2134-12-06    76          28
- 8         68        2122 2008 - 2010       2131-01-20    77          30
- 9         53        2156 2008 - 2010       NA            57          24
-10         56        2162 2020 - 2022       2162-12-11    56          18
+   anchor_age anchor_year anchor_year_group dod        age_intime bicarbonate
+        &lt;int&gt;       &lt;int&gt; &lt;chr&gt;             &lt;date&gt;          &lt;int&gt;       &lt;dbl&gt;
+ 1         52        2180 2014 - 2016       2180-09-09         52          25
+ 2         86        2150 2008 - 2010       2152-01-30         86          26
+ 3         73        2186 2008 - 2010       2193-08-26         76          21
+ 4         55        2157 2011 - 2013       NA                 55          22
+ 5         55        2157 2011 - 2013       NA                 55          30
+ 6         46        2110 2011 - 2013       NA                 46          NA
+ 7         73        2131 2017 - 2019       2134-12-06         76          28
+ 8         68        2122 2008 - 2010       2131-01-20         77          30
+ 9         53        2156 2008 - 2010       NA                 57          24
+10         56        2162 2020 - 2022       2162-12-11         56          18
    chloride creatinine glucose potassium sodium hematocrit   wbc heart_rate
       &lt;dbl&gt;      &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt;  &lt;dbl&gt;      &lt;dbl&gt; &lt;dbl&gt;      &lt;dbl&gt;
  1       95        0.7     102       6.7    126       41.1   6.9       91  
@@ -4081,43 +4072,180 @@ Caused by warning:
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Step (iii): Create los_long variable</span></span>
-<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort <span class="ot">&lt;-</span> mimic_icu_cohort <span class="sc">|&gt;</span></span>
-<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">los_long =</span> los <span class="sc">&gt;=</span> <span class="dv">2</span>  </span>
-<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>    <span class="co"># TRUE if length of stay is 2 days or more, FALSE otherwise</span></span>
-<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Step (iii): Create los_long variable</span></span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort <span class="ot">&lt;-</span> mimic_icu_cohort <span class="sc">|&gt;</span></span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">los_long =</span> los <span class="sc">&gt;=</span> <span class="dv">2</span>) <span class="sc">|&gt;</span></span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">collect</span>() <span class="sc">|&gt;</span></span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(<span class="at">width =</span> <span class="cn">Inf</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 94,458 × 42
+   subject_id  hadm_id  stay_id first_careunit                                  
+        &lt;int&gt;    &lt;int&gt;    &lt;int&gt; &lt;fct&gt;                                           
+ 1   10000032 29079034 39553978 Medical Intensive Care Unit (MICU)              
+ 2   10000690 25860671 37081114 Medical Intensive Care Unit (MICU)              
+ 3   10000980 26913865 39765666 Medical Intensive Care Unit (MICU)              
+ 4   10001217 24597018 37067082 Surgical Intensive Care Unit (SICU)             
+ 5   10001217 27703517 34592300 Surgical Intensive Care Unit (SICU)             
+ 6   10001725 25563031 31205490 Medical/Surgical Intensive Care Unit (MICU/SICU)
+ 7   10001843 26133978 39698942 Medical/Surgical Intensive Care Unit (MICU/SICU)
+ 8   10001884 26184834 37510196 Medical Intensive Care Unit (MICU)              
+ 9   10002013 23581541 39060235 Cardiac Vascular Intensive Care Unit (CVICU)    
+10   10002114 27793700 34672098 Other                                           
+   last_careunit                                    intime             
+   &lt;fct&gt;                                            &lt;dttm&gt;             
+ 1 Medical Intensive Care Unit (MICU)               2180-07-23 14:00:00
+ 2 Medical Intensive Care Unit (MICU)               2150-11-02 19:37:00
+ 3 Medical Intensive Care Unit (MICU)               2189-06-27 08:42:00
+ 4 Surgical Intensive Care Unit (SICU)              2157-11-20 19:18:02
+ 5 Surgical Intensive Care Unit (SICU)              2157-12-19 15:42:24
+ 6 Medical/Surgical Intensive Care Unit (MICU/SICU) 2110-04-11 15:52:22
+ 7 Medical/Surgical Intensive Care Unit (MICU/SICU) 2134-12-05 18:50:03
+ 8 Medical Intensive Care Unit (MICU)               2131-01-11 04:20:05
+ 9 Cardiac Vascular Intensive Care Unit (CVICU)     2160-05-18 10:00:53
+10 Other                                            2162-02-17 23:30:00
+   outtime               los admittime           dischtime          
+   &lt;dttm&gt;              &lt;dbl&gt; &lt;dttm&gt;              &lt;dttm&gt;             
+ 1 2180-07-23 23:50:47 0.410 2180-07-23 12:35:00 2180-07-25 17:55:00
+ 2 2150-11-06 17:03:17 3.89  2150-11-02 18:02:00 2150-11-12 13:45:00
+ 3 2189-06-27 20:38:27 0.498 2189-06-27 07:38:00 2189-07-03 03:00:00
+ 4 2157-11-21 22:08:00 1.12  2157-11-18 22:56:00 2157-11-25 18:00:00
+ 5 2157-12-20 14:27:41 0.948 2157-12-18 16:58:00 2157-12-24 14:55:00
+ 6 2110-04-12 23:59:56 1.34  2110-04-11 15:08:00 2110-04-14 15:00:00
+ 7 2134-12-06 14:38:26 0.825 2134-12-05 00:10:00 2134-12-06 12:54:00
+ 8 2131-01-20 08:27:30 9.17  2131-01-07 20:39:00 2131-01-20 05:15:00
+ 9 2160-05-19 17:33:33 1.31  2160-05-18 07:45:00 2160-05-23 13:30:00
+10 2162-02-20 21:16:27 2.91  2162-02-17 22:32:00 2162-03-04 15:16:00
+   deathtime           admission_type              admit_provider_id
+   &lt;dttm&gt;              &lt;fct&gt;                       &lt;chr&gt;            
+ 1 NA                  EW EMER.                    P06OTX           
+ 2 NA                  EW EMER.                    P26QQ4           
+ 3 NA                  EW EMER.                    P06OTX           
+ 4 NA                  EW EMER.                    P3610N           
+ 5 NA                  Other                       P276OU           
+ 6 NA                  EW EMER.                    P32W56           
+ 7 2134-12-06 12:54:00 URGENT                      P67ATB           
+ 8 2131-01-20 05:15:00 OBSERVATION ADMIT           P49AFC           
+ 9 NA                  SURGICAL SAME DAY ADMISSION P8286C           
+10 NA                  OBSERVATION ADMIT           P46834           
+   admission_location     discharge_location insurance language marital_status
+   &lt;fct&gt;                  &lt;fct&gt;              &lt;chr&gt;     &lt;chr&gt;    &lt;chr&gt;         
+ 1 EMERGENCY ROOM         HOME               Medicaid  English  WIDOWED       
+ 2 EMERGENCY ROOM         Other              Medicare  English  WIDOWED       
+ 3 EMERGENCY ROOM         HOME HEALTH CARE   Medicare  English  MARRIED       
+ 4 EMERGENCY ROOM         HOME HEALTH CARE   Private   Other    MARRIED       
+ 5 PHYSICIAN REFERRAL     HOME HEALTH CARE   Private   Other    MARRIED       
+ 6 Other                  HOME               Private   English  MARRIED       
+ 7 TRANSFER FROM HOSPITAL DIED               Medicare  English  SINGLE        
+ 8 EMERGENCY ROOM         DIED               Medicare  English  MARRIED       
+ 9 PHYSICIAN REFERRAL     HOME HEALTH CARE   Medicare  English  SINGLE        
+10 PHYSICIAN REFERRAL     HOME HEALTH CARE   Medicaid  English  &lt;NA&gt;          
+   race  edregtime           edouttime           hospital_expire_flag gender
+   &lt;chr&gt; &lt;dttm&gt;              &lt;dttm&gt;                             &lt;int&gt; &lt;chr&gt; 
+ 1 WHITE 2180-07-23 05:54:00 2180-07-23 14:00:00                    0 F     
+ 2 WHITE 2150-11-02 11:41:00 2150-11-02 19:37:00                    0 F     
+ 3 BLACK 2189-06-27 06:25:00 2189-06-27 08:42:00                    0 F     
+ 4 WHITE 2157-11-18 17:38:00 2157-11-19 01:24:00                    0 F     
+ 5 WHITE NA                  NA                                     0 F     
+ 6 WHITE NA                  NA                                     0 F     
+ 7 WHITE NA                  NA                                     1 M     
+ 8 BLACK 2131-01-07 13:36:00 2131-01-07 22:13:00                    1 F     
+ 9 Other NA                  NA                                     0 F     
+10 Other 2162-02-17 19:35:00 2162-02-17 23:30:00                    0 M     
+   anchor_age anchor_year anchor_year_group dod        age_intime bicarbonate
+        &lt;int&gt;       &lt;int&gt; &lt;chr&gt;             &lt;date&gt;          &lt;int&gt;       &lt;dbl&gt;
+ 1         52        2180 2014 - 2016       2180-09-09         52          25
+ 2         86        2150 2008 - 2010       2152-01-30         86          26
+ 3         73        2186 2008 - 2010       2193-08-26         76          21
+ 4         55        2157 2011 - 2013       NA                 55          22
+ 5         55        2157 2011 - 2013       NA                 55          30
+ 6         46        2110 2011 - 2013       NA                 46          NA
+ 7         73        2131 2017 - 2019       2134-12-06         76          28
+ 8         68        2122 2008 - 2010       2131-01-20         77          30
+ 9         53        2156 2008 - 2010       NA                 57          24
+10         56        2162 2020 - 2022       2162-12-11         56          18
+   chloride creatinine glucose potassium sodium hematocrit   wbc heart_rate
+      &lt;dbl&gt;      &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt;  &lt;dbl&gt;      &lt;dbl&gt; &lt;dbl&gt;      &lt;dbl&gt;
+ 1       95        0.7     102       6.7    126       41.1   6.9       91  
+ 2      100        1        85       4.8    137       36.1   7.1       78  
+ 3      109        2.3      89       3.9    144       27.3   5.3       76  
+ 4      108        0.6     112       4.2    142       38.1  15.7       86  
+ 5      104        0.5      87       4.1    142       37.4   5.4       79.3
+ 6       98       NA        NA       4.1    139       NA    NA         86  
+ 7       97        1.3     131       3.9    138       31.4  10.4      124. 
+ 8       88        1.1     141       4.5    130       39.7  12.2       49  
+ 9      102        0.9     288       3.5    137       34.9   7.2       80  
+10       NA        3.1      95       6.5    125       34.3  16.8      110. 
+   `non-invasive_blood_pressure_systolic`
+                                    &lt;dbl&gt;
+ 1                                   84  
+ 2                                  106  
+ 3                                  154  
+ 4                                  151  
+ 5                                  156  
+ 6                                   73  
+ 7                                  110  
+ 8                                  174. 
+ 9                                   98.5
+10                                  112  
+   `non-invasive_blood_pressure_diastolic` temperature_fahrenheit
+                                     &lt;dbl&gt;                  &lt;dbl&gt;
+ 1                                    48                     98.7
+ 2                                    56.5                   97.7
+ 3                                   102                     98  
+ 4                                    90                     98.5
+ 5                                    93.3                   97.6
+ 6                                    56                     97.7
+ 7                                    78                     97.9
+ 8                                    30.5                   98.1
+ 9                                    62                     97.2
+10                                    80                     97.9
+   respiratory_rate los_long
+              &lt;dbl&gt; &lt;lgl&gt;   
+ 1             24   FALSE   
+ 2             24.3 TRUE    
+ 3             23.5 FALSE   
+ 4             18   FALSE   
+ 5             14   FALSE   
+ 6             19   FALSE   
+ 7             16.5 FALSE   
+ 8             13   TRUE    
+ 9             14   FALSE   
+10             21   TRUE    
+# ℹ 94,448 more rows</code></pre>
+</div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort <span class="sc">|&gt;</span> </span>
-<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(subject_id, hadm_id, stay_id,</span>
-<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>            intime, outtime, admittime,dischtime,</span>
-<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a>            deathtime, admit_provider_id, edregtime,</span>
-<span id="cb42-5"><a href="#cb42-5" aria-hidden="true" tabindex="-1"></a>            edouttime, anchor_age, anchor_year, </span>
-<span id="cb42-6"><a href="#cb42-6" aria-hidden="true" tabindex="-1"></a>            anchor_year_group)) <span class="sc">|&gt;</span></span>
-<span id="cb42-7"><a href="#cb42-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tbl_summary</span>(<span class="at">by =</span> los_long)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort <span class="ot">&lt;-</span> mimic_icu_cohort <span class="sc">|&gt;</span></span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(<span class="st">&quot;subject_id&quot;</span>, <span class="st">&quot;hadm_id&quot;</span>, <span class="st">&quot;stay_id&quot;</span>,</span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;intime&quot;</span>, <span class="st">&quot;outtime&quot;</span>, <span class="st">&quot;admittime&quot;</span>,<span class="st">&quot;dischtime&quot;</span>,</span>
+<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;deathtime&quot;</span>, <span class="st">&quot;admit_provider_id&quot;</span>, <span class="st">&quot;edregtime&quot;</span>,</span>
+<span id="cb42-5"><a href="#cb42-5" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;edouttime&quot;</span>, <span class="st">&quot;anchor_age&quot;</span>, <span class="st">&quot;anchor_year&quot;</span>, </span>
+<span id="cb42-6"><a href="#cb42-6" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;anchor_year_group&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb42-7"><a href="#cb42-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tbl_summary</span>(<span class="at">by =</span> <span class="st">&quot;los_long&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>14 missing rows in the &quot;los_long&quot; column have been removed.
 The following errors were returned during `tbl_summary()`:
 ✖ For variable `dod` (`los_long = FALSE`) and &quot;p75&quot; statistic: * not defined
   for &quot;Date&quot; objects</code></pre>
 </div>
+<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Now print the summary table output</span></span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 
-<div id="zfkyvekwmg" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#zfkyvekwmg table {
+<div id="wtgbcyyqhm" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#wtgbcyyqhm table {
 font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 -webkit-font-smoothing: antialiased;
 -moz-osx-font-smoothing: grayscale;
 }
-#zfkyvekwmg thead, #zfkyvekwmg tbody, #zfkyvekwmg tfoot, #zfkyvekwmg tr, #zfkyvekwmg td, #zfkyvekwmg th {
+#wtgbcyyqhm thead, #wtgbcyyqhm tbody, #wtgbcyyqhm tfoot, #wtgbcyyqhm tr, #wtgbcyyqhm td, #wtgbcyyqhm th {
 border-style: none;
 }
-#zfkyvekwmg p {
+#wtgbcyyqhm p {
 margin: 0;
 padding: 0;
 }
-#zfkyvekwmg .gt_table {
+#wtgbcyyqhm .gt_table {
 display: table;
 border-collapse: collapse;
 line-height: normal;
@@ -4142,11 +4270,11 @@ border-left-style: none;
 border-left-width: 2px;
 border-left-color: #D3D3D3;
 }
-#zfkyvekwmg .gt_caption {
+#wtgbcyyqhm .gt_caption {
 padding-top: 4px;
 padding-bottom: 4px;
 }
-#zfkyvekwmg .gt_title {
+#wtgbcyyqhm .gt_title {
 color: #333333;
 font-size: 125%;
 font-weight: initial;
@@ -4157,7 +4285,7 @@ padding-right: 5px;
 border-bottom-color: #FFFFFF;
 border-bottom-width: 0;
 }
-#zfkyvekwmg .gt_subtitle {
+#wtgbcyyqhm .gt_subtitle {
 color: #333333;
 font-size: 85%;
 font-weight: initial;
@@ -4168,7 +4296,7 @@ padding-right: 5px;
 border-top-color: #FFFFFF;
 border-top-width: 0;
 }
-#zfkyvekwmg .gt_heading {
+#wtgbcyyqhm .gt_heading {
 background-color: #FFFFFF;
 text-align: center;
 border-bottom-color: #FFFFFF;
@@ -4179,12 +4307,12 @@ border-right-style: none;
 border-right-width: 1px;
 border-right-color: #D3D3D3;
 }
-#zfkyvekwmg .gt_bottom_border {
+#wtgbcyyqhm .gt_bottom_border {
 border-bottom-style: solid;
 border-bottom-width: 2px;
 border-bottom-color: #D3D3D3;
 }
-#zfkyvekwmg .gt_col_headings {
+#wtgbcyyqhm .gt_col_headings {
 border-top-style: solid;
 border-top-width: 2px;
 border-top-color: #D3D3D3;
@@ -4198,7 +4326,7 @@ border-right-style: none;
 border-right-width: 1px;
 border-right-color: #D3D3D3;
 }
-#zfkyvekwmg .gt_col_heading {
+#wtgbcyyqhm .gt_col_heading {
 color: #333333;
 background-color: #FFFFFF;
 font-size: 100%;
@@ -4217,7 +4345,7 @@ padding-left: 5px;
 padding-right: 5px;
 overflow-x: hidden;
 }
-#zfkyvekwmg .gt_column_spanner_outer {
+#wtgbcyyqhm .gt_column_spanner_outer {
 color: #333333;
 background-color: #FFFFFF;
 font-size: 100%;
@@ -4228,13 +4356,13 @@ padding-bottom: 0;
 padding-left: 4px;
 padding-right: 4px;
 }
-#zfkyvekwmg .gt_column_spanner_outer:first-child {
+#wtgbcyyqhm .gt_column_spanner_outer:first-child {
 padding-left: 0;
 }
-#zfkyvekwmg .gt_column_spanner_outer:last-child {
+#wtgbcyyqhm .gt_column_spanner_outer:last-child {
 padding-right: 0;
 }
-#zfkyvekwmg .gt_column_spanner {
+#wtgbcyyqhm .gt_column_spanner {
 border-bottom-style: solid;
 border-bottom-width: 2px;
 border-bottom-color: #D3D3D3;
@@ -4245,10 +4373,10 @@ overflow-x: hidden;
 display: inline-block;
 width: 100%;
 }
-#zfkyvekwmg .gt_spanner_row {
+#wtgbcyyqhm .gt_spanner_row {
 border-bottom-style: hidden;
 }
-#zfkyvekwmg .gt_group_heading {
+#wtgbcyyqhm .gt_group_heading {
 padding-top: 8px;
 padding-bottom: 8px;
 padding-left: 5px;
@@ -4273,7 +4401,7 @@ border-right-color: #D3D3D3;
 vertical-align: middle;
 text-align: left;
 }
-#zfkyvekwmg .gt_empty_group_heading {
+#wtgbcyyqhm .gt_empty_group_heading {
 padding: 0.5px;
 color: #333333;
 background-color: #FFFFFF;
@@ -4287,13 +4415,13 @@ border-bottom-width: 2px;
 border-bottom-color: #D3D3D3;
 vertical-align: middle;
 }
-#zfkyvekwmg .gt_from_md > :first-child {
+#wtgbcyyqhm .gt_from_md > :first-child {
 margin-top: 0;
 }
-#zfkyvekwmg .gt_from_md > :last-child {
+#wtgbcyyqhm .gt_from_md > :last-child {
 margin-bottom: 0;
 }
-#zfkyvekwmg .gt_row {
+#wtgbcyyqhm .gt_row {
 padding-top: 8px;
 padding-bottom: 8px;
 padding-left: 5px;
@@ -4311,7 +4439,7 @@ border-right-color: #D3D3D3;
 vertical-align: middle;
 overflow-x: hidden;
 }
-#zfkyvekwmg .gt_stub {
+#wtgbcyyqhm .gt_stub {
 color: #333333;
 background-color: #FFFFFF;
 font-size: 100%;
@@ -4323,7 +4451,7 @@ border-right-color: #D3D3D3;
 padding-left: 5px;
 padding-right: 5px;
 }
-#zfkyvekwmg .gt_stub_row_group {
+#wtgbcyyqhm .gt_stub_row_group {
 color: #333333;
 background-color: #FFFFFF;
 font-size: 100%;
@@ -4336,13 +4464,13 @@ padding-left: 5px;
 padding-right: 5px;
 vertical-align: top;
 }
-#zfkyvekwmg .gt_row_group_first td {
+#wtgbcyyqhm .gt_row_group_first td {
 border-top-width: 2px;
 }
-#zfkyvekwmg .gt_row_group_first th {
+#wtgbcyyqhm .gt_row_group_first th {
 border-top-width: 2px;
 }
-#zfkyvekwmg .gt_summary_row {
+#wtgbcyyqhm .gt_summary_row {
 color: #333333;
 background-color: #FFFFFF;
 text-transform: inherit;
@@ -4351,14 +4479,14 @@ padding-bottom: 8px;
 padding-left: 5px;
 padding-right: 5px;
 }
-#zfkyvekwmg .gt_first_summary_row {
+#wtgbcyyqhm .gt_first_summary_row {
 border-top-style: solid;
 border-top-color: #D3D3D3;
 }
-#zfkyvekwmg .gt_first_summary_row.thick {
+#wtgbcyyqhm .gt_first_summary_row.thick {
 border-top-width: 2px;
 }
-#zfkyvekwmg .gt_last_summary_row {
+#wtgbcyyqhm .gt_last_summary_row {
 padding-top: 8px;
 padding-bottom: 8px;
 padding-left: 5px;
@@ -4367,7 +4495,7 @@ border-bottom-style: solid;
 border-bottom-width: 2px;
 border-bottom-color: #D3D3D3;
 }
-#zfkyvekwmg .gt_grand_summary_row {
+#wtgbcyyqhm .gt_grand_summary_row {
 color: #333333;
 background-color: #FFFFFF;
 text-transform: inherit;
@@ -4376,7 +4504,7 @@ padding-bottom: 8px;
 padding-left: 5px;
 padding-right: 5px;
 }
-#zfkyvekwmg .gt_first_grand_summary_row {
+#wtgbcyyqhm .gt_first_grand_summary_row {
 padding-top: 8px;
 padding-bottom: 8px;
 padding-left: 5px;
@@ -4385,7 +4513,7 @@ border-top-style: double;
 border-top-width: 6px;
 border-top-color: #D3D3D3;
 }
-#zfkyvekwmg .gt_last_grand_summary_row_top {
+#wtgbcyyqhm .gt_last_grand_summary_row_top {
 padding-top: 8px;
 padding-bottom: 8px;
 padding-left: 5px;
@@ -4394,10 +4522,10 @@ border-bottom-style: double;
 border-bottom-width: 6px;
 border-bottom-color: #D3D3D3;
 }
-#zfkyvekwmg .gt_striped {
+#wtgbcyyqhm .gt_striped {
 background-color: rgba(128, 128, 128, 0.05);
 }
-#zfkyvekwmg .gt_table_body {
+#wtgbcyyqhm .gt_table_body {
 border-top-style: solid;
 border-top-width: 2px;
 border-top-color: #D3D3D3;
@@ -4405,7 +4533,7 @@ border-bottom-style: solid;
 border-bottom-width: 2px;
 border-bottom-color: #D3D3D3;
 }
-#zfkyvekwmg .gt_footnotes {
+#wtgbcyyqhm .gt_footnotes {
 color: #333333;
 background-color: #FFFFFF;
 border-bottom-style: none;
@@ -4418,7 +4546,7 @@ border-right-style: none;
 border-right-width: 2px;
 border-right-color: #D3D3D3;
 }
-#zfkyvekwmg .gt_footnote {
+#wtgbcyyqhm .gt_footnote {
 margin: 0px;
 font-size: 90%;
 padding-top: 4px;
@@ -4426,7 +4554,7 @@ padding-bottom: 4px;
 padding-left: 5px;
 padding-right: 5px;
 }
-#zfkyvekwmg .gt_sourcenotes {
+#wtgbcyyqhm .gt_sourcenotes {
 color: #333333;
 background-color: #FFFFFF;
 border-bottom-style: none;
@@ -4439,64 +4567,64 @@ border-right-style: none;
 border-right-width: 2px;
 border-right-color: #D3D3D3;
 }
-#zfkyvekwmg .gt_sourcenote {
+#wtgbcyyqhm .gt_sourcenote {
 font-size: 90%;
 padding-top: 4px;
 padding-bottom: 4px;
 padding-left: 5px;
 padding-right: 5px;
 }
-#zfkyvekwmg .gt_left {
+#wtgbcyyqhm .gt_left {
 text-align: left;
 }
-#zfkyvekwmg .gt_center {
+#wtgbcyyqhm .gt_center {
 text-align: center;
 }
-#zfkyvekwmg .gt_right {
+#wtgbcyyqhm .gt_right {
 text-align: right;
 font-variant-numeric: tabular-nums;
 }
-#zfkyvekwmg .gt_font_normal {
+#wtgbcyyqhm .gt_font_normal {
 font-weight: normal;
 }
-#zfkyvekwmg .gt_font_bold {
+#wtgbcyyqhm .gt_font_bold {
 font-weight: bold;
 }
-#zfkyvekwmg .gt_font_italic {
+#wtgbcyyqhm .gt_font_italic {
 font-style: italic;
 }
-#zfkyvekwmg .gt_super {
+#wtgbcyyqhm .gt_super {
 font-size: 65%;
 }
-#zfkyvekwmg .gt_footnote_marks {
+#wtgbcyyqhm .gt_footnote_marks {
 font-size: 75%;
 vertical-align: 0.4em;
 position: initial;
 }
-#zfkyvekwmg .gt_asterisk {
+#wtgbcyyqhm .gt_asterisk {
 font-size: 100%;
 vertical-align: 0;
 }
-#zfkyvekwmg .gt_indent_1 {
+#wtgbcyyqhm .gt_indent_1 {
 text-indent: 5px;
 }
-#zfkyvekwmg .gt_indent_2 {
+#wtgbcyyqhm .gt_indent_2 {
 text-indent: 10px;
 }
-#zfkyvekwmg .gt_indent_3 {
+#wtgbcyyqhm .gt_indent_3 {
 text-indent: 15px;
 }
-#zfkyvekwmg .gt_indent_4 {
+#wtgbcyyqhm .gt_indent_4 {
 text-indent: 20px;
 }
-#zfkyvekwmg .gt_indent_5 {
+#wtgbcyyqhm .gt_indent_5 {
 text-indent: 25px;
 }
-#zfkyvekwmg .katex-display {
+#wtgbcyyqhm .katex-display {
 display: inline-flex !important;
 margin-bottom: 0.75em !important;
 }
-#zfkyvekwmg div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#wtgbcyyqhm div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
 height: 0px !important;
 }
 </style>
@@ -4727,96 +4855,21 @@ N = 48,107</span></span><span class="gt_footnote_marks" style="white-space:nowra
     <tr><td headers="label" class="gt_row gt_left">race</td>
 <td headers="stat_2" class="gt_row gt_center"><br></td>
 <td headers="stat_1" class="gt_row gt_center"><br></td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    AMERICAN INDIAN/ALASKA NATIVE</td>
-<td headers="stat_2" class="gt_row gt_center">103 (0.2%)</td>
-<td headers="stat_1" class="gt_row gt_center">95 (0.2%)</td></tr>
     <tr><td headers="label" class="gt_row gt_left">    ASIAN</td>
-<td headers="stat_2" class="gt_row gt_center">1,020 (2.2%)</td>
-<td headers="stat_1" class="gt_row gt_center">1,136 (2.4%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    ASIAN - ASIAN INDIAN</td>
-<td headers="stat_2" class="gt_row gt_center">120 (0.3%)</td>
-<td headers="stat_1" class="gt_row gt_center">128 (0.3%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    ASIAN - KOREAN</td>
-<td headers="stat_2" class="gt_row gt_center">41 (&lt;0.1%)</td>
-<td headers="stat_1" class="gt_row gt_center">32 (&lt;0.1%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    ASIAN - SOUTH EAST ASIAN</td>
-<td headers="stat_2" class="gt_row gt_center">188 (0.4%)</td>
-<td headers="stat_1" class="gt_row gt_center">220 (0.5%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    BLACK/AFRICAN</td>
-<td headers="stat_2" class="gt_row gt_center">224 (0.5%)</td>
-<td headers="stat_1" class="gt_row gt_center">207 (0.4%)</td></tr>
+<td headers="stat_2" class="gt_row gt_center">1,369 (3.0%)</td>
+<td headers="stat_1" class="gt_row gt_center">1,516 (3.2%)</td></tr>
     <tr><td headers="label" class="gt_row gt_left">    BLACK</td>
-<td headers="stat_2" class="gt_row gt_center">4,098 (8.8%)</td>
-<td headers="stat_1" class="gt_row gt_center">4,579 (9.5%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    BLACK/CAPE VERDEAN</td>
-<td headers="stat_2" class="gt_row gt_center">294 (0.6%)</td>
-<td headers="stat_1" class="gt_row gt_center">362 (0.8%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    BLACK/CARIBBEAN ISLAND</td>
-<td headers="stat_2" class="gt_row gt_center">317 (0.7%)</td>
-<td headers="stat_1" class="gt_row gt_center">304 (0.6%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    HISPANIC OR LATINO</td>
-<td headers="stat_2" class="gt_row gt_center">305 (0.7%)</td>
-<td headers="stat_1" class="gt_row gt_center">478 (1.0%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    HISPANIC/LATINO - CENTRAL AMERICAN</td>
-<td headers="stat_2" class="gt_row gt_center">38 (&lt;0.1%)</td>
-<td headers="stat_1" class="gt_row gt_center">35 (&lt;0.1%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    HISPANIC/LATINO - COLUMBIAN</td>
-<td headers="stat_2" class="gt_row gt_center">47 (0.1%)</td>
-<td headers="stat_1" class="gt_row gt_center">55 (0.1%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    HISPANIC/LATINO - CUBAN</td>
-<td headers="stat_2" class="gt_row gt_center">44 (&lt;0.1%)</td>
-<td headers="stat_1" class="gt_row gt_center">56 (0.1%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    HISPANIC/LATINO - DOMINICAN</td>
-<td headers="stat_2" class="gt_row gt_center">398 (0.9%)</td>
-<td headers="stat_1" class="gt_row gt_center">348 (0.7%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    HISPANIC/LATINO - GUATEMALAN</td>
-<td headers="stat_2" class="gt_row gt_center">107 (0.2%)</td>
-<td headers="stat_1" class="gt_row gt_center">120 (0.2%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    HISPANIC/LATINO - HONDURAN</td>
-<td headers="stat_2" class="gt_row gt_center">40 (&lt;0.1%)</td>
-<td headers="stat_1" class="gt_row gt_center">48 (&lt;0.1%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    HISPANIC/LATINO - MEXICAN</td>
-<td headers="stat_2" class="gt_row gt_center">38 (&lt;0.1%)</td>
-<td headers="stat_1" class="gt_row gt_center">50 (0.1%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    HISPANIC/LATINO - PUERTO RICAN</td>
-<td headers="stat_2" class="gt_row gt_center">586 (1.3%)</td>
-<td headers="stat_1" class="gt_row gt_center">628 (1.3%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    HISPANIC/LATINO - SALVADORAN</td>
-<td headers="stat_2" class="gt_row gt_center">84 (0.2%)</td>
-<td headers="stat_1" class="gt_row gt_center">90 (0.2%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    MULTIPLE RACE/ETHNICITY</td>
-<td headers="stat_2" class="gt_row gt_center">30 (&lt;0.1%)</td>
-<td headers="stat_1" class="gt_row gt_center">44 (&lt;0.1%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER</td>
-<td headers="stat_2" class="gt_row gt_center">65 (0.1%)</td>
-<td headers="stat_1" class="gt_row gt_center">68 (0.1%)</td></tr>
+<td headers="stat_2" class="gt_row gt_center">4,933 (11%)</td>
+<td headers="stat_1" class="gt_row gt_center">5,452 (11%)</td></tr>
+    <tr><td headers="label" class="gt_row gt_left">    HISPANIC</td>
+<td headers="stat_2" class="gt_row gt_center">1,687 (3.6%)</td>
+<td headers="stat_1" class="gt_row gt_center">1,908 (4.0%)</td></tr>
     <tr><td headers="label" class="gt_row gt_left">    Other</td>
-<td headers="stat_2" class="gt_row gt_center">6,244 (13%)</td>
-<td headers="stat_1" class="gt_row gt_center">5,342 (11%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    PATIENT DECLINED TO ANSWER</td>
-<td headers="stat_2" class="gt_row gt_center">225 (0.5%)</td>
-<td headers="stat_1" class="gt_row gt_center">290 (0.6%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    PORTUGUESE</td>
-<td headers="stat_2" class="gt_row gt_center">234 (0.5%)</td>
-<td headers="stat_1" class="gt_row gt_center">191 (0.4%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    SOUTH AMERICAN</td>
-<td headers="stat_2" class="gt_row gt_center">52 (0.1%)</td>
-<td headers="stat_1" class="gt_row gt_center">52 (0.1%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    UNABLE TO OBTAIN</td>
-<td headers="stat_2" class="gt_row gt_center">1,083 (2.3%)</td>
-<td headers="stat_1" class="gt_row gt_center">798 (1.7%)</td></tr>
+<td headers="stat_2" class="gt_row gt_center">8,036 (17%)</td>
+<td headers="stat_1" class="gt_row gt_center">6,880 (14%)</td></tr>
     <tr><td headers="label" class="gt_row gt_left">    WHITE</td>
-<td headers="stat_2" class="gt_row gt_center">28,996 (63%)</td>
-<td headers="stat_1" class="gt_row gt_center">30,864 (64%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    WHITE - BRAZILIAN</td>
-<td headers="stat_2" class="gt_row gt_center">96 (0.2%)</td>
-<td headers="stat_1" class="gt_row gt_center">125 (0.3%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    WHITE - EASTERN EUROPEAN</td>
-<td headers="stat_2" class="gt_row gt_center">119 (0.3%)</td>
-<td headers="stat_1" class="gt_row gt_center">153 (0.3%)</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">    WHITE - OTHER EUROPEAN</td>
-<td headers="stat_2" class="gt_row gt_center">1,101 (2.4%)</td>
-<td headers="stat_1" class="gt_row gt_center">1,209 (2.5%)</td></tr>
+<td headers="stat_2" class="gt_row gt_center">30,312 (65%)</td>
+<td headers="stat_1" class="gt_row gt_center">32,351 (67%)</td></tr>
     <tr><td headers="label" class="gt_row gt_left">hospital_expire_flag</td>
 <td headers="stat_2" class="gt_row gt_center">6,831 (15%)</td>
 <td headers="stat_1" class="gt_row gt_center">4,512 (9.4%)</td></tr>
@@ -4835,7 +4888,7 @@ N = 48,107</span></span><span class="gt_footnote_marks" style="white-space:nowra
     <tr><td headers="label" class="gt_row gt_left">    Unknown</td>
 <td headers="stat_2" class="gt_row gt_center">25,846</td>
 <td headers="stat_1" class="gt_row gt_center">30,639</td></tr>
-    <tr><td headers="label" class="gt_row gt_left">age</td>
+    <tr><td headers="label" class="gt_row gt_left">age_intime</td>
 <td headers="stat_2" class="gt_row gt_center">67 (56, 77)</td>
 <td headers="stat_1" class="gt_row gt_center">66 (54, 77)</td></tr>
     <tr><td headers="label" class="gt_row gt_left">bicarbonate</td>
@@ -4932,20 +4985,20 @@ N = 48,107</span></span><span class="gt_footnote_marks" style="white-space:nowra
 <h3 class="anchored" data-anchor-id="q1.9-save-the-final-tibble">Q1.9 Save the final tibble</h3>
 <p>Save the final tibble to an R data file <code>mimic_icu_cohort.rds</code> in the <code>mimiciv_shiny</code> folder.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="co"># make a directory mimiciv_shiny</span></span>
-<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">dir.exists</span>(<span class="st">&quot;mimiciv_shiny&quot;</span>)) {</span>
-<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dir.create</span>(<span class="st">&quot;mimiciv_shiny&quot;</span>)</span>
-<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a><span class="co"># save the final tibble</span></span>
-<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort <span class="sc">|&gt;</span></span>
-<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">write_rds</span>(<span class="st">&quot;mimiciv_shiny/mimic_icu_cohort.rds&quot;</span>, <span class="at">compress =</span> <span class="st">&quot;gz&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="co"># make a directory mimiciv_shiny</span></span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">dir.exists</span>(<span class="st">&quot;mimiciv_shiny&quot;</span>)) {</span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dir.create</span>(<span class="st">&quot;mimiciv_shiny&quot;</span>)</span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a><span class="co"># save the final tibble</span></span>
+<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort <span class="sc">|&gt;</span></span>
+<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">write_rds</span>(<span class="st">&quot;mimiciv_shiny/mimic_icu_cohort.rds&quot;</span>, <span class="at">compress =</span> <span class="st">&quot;gz&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Close database connection and clear workspace.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">exists</span>(<span class="st">&quot;con_bq&quot;</span>)) {</span>
-<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dbDisconnect</span>(con_bq)</span>
-<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">exists</span>(<span class="st">&quot;con_bq&quot;</span>)) {</span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dbDisconnect</span>(con_bq)</span>
+<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Although it is not a good practice to add big data files to Git, for grading purpose, please add <code>mimic_icu_cohort.rds</code> to your Git repository.</p>
 </section>
