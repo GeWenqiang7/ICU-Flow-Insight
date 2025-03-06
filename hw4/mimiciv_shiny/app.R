@@ -6,7 +6,7 @@ library(gtsummary)
 
 mimic_icu_cohort <- readRDS("mimic_icu_cohort.rds")
 
-satoken <- "biostat-203b-2025-winter-4e58ec6e5579.json"
+satoken <- "../biostat-203b-2025-winter-4e58ec6e5579.json"
 
 # BigQuery authentication using service account
 bq_auth(path = satoken)
@@ -64,7 +64,9 @@ ui <- fluidPage(
                sidebarPanel(
                  helpText("Select a patient"),  # Instruction text
                  selectizeInput("patient_id", "Patient ID", 
-                                choices = NULL, options = list(maxItems = 1)),  # Patient ID selection
+                                choices = NULL, 
+                                options = list(maxItems = 1)),  
+                 # Patient ID selection
                  actionButton("search", "Submit"),  # Search button
                  
                  # Plot type selection (ADT timeline or ICU vitals)
@@ -117,14 +119,16 @@ server <- function(input, output, session) {
                     value = c(floor(min_val), ceiling(max_val)))
       })
     } else {
-      output$slider_ui <- renderUI({ NULL })  # Hide slider for categorical variables
+      output$slider_ui <- renderUI({ NULL })  
+      # Hide slider for categorical variables
     }
   })
   
   # Reactive function to get the selected variable
   variable_reactive <- reactive({
     req(input$variable)
-    req(input$variable %in% names(mimic_icu_cohort))  # Ensure the variable exists
+    req(input$variable %in% names(mimic_icu_cohort))  
+    # Ensure the variable exists
     input$variable
   })
   
@@ -152,7 +156,8 @@ server <- function(input, output, session) {
       # **For categorical variables: Bar Chart**
     } else {
       plot_data <- plot_data %>%
-        count(!!sym(variable), name = "count")  # Count occurrences of each category
+        count(!!sym(variable), name = "count")  
+      # Count occurrences of each category
       
       ggplot(plot_data, aes_string(x = variable, y = "count")) +
         geom_bar(stat = "identity", fill = "coral", alpha = 0.7) +
@@ -195,7 +200,9 @@ server <- function(input, output, session) {
   
   # Update patient ID selection dynamically
   observe({
-    updateSelectizeInput(session, "patient_id", choices = unique(mimic_icu_cohort$subject_id), server = TRUE)
+    updateSelectizeInput(session, "patient_id", 
+                         choices = unique(mimic_icu_cohort$subject_id), 
+                         server = TRUE)
   })
   
   # Generate plot title with patient demographics
@@ -208,7 +215,8 @@ server <- function(input, output, session) {
     age <- patient_info$age_intime[1]
     race <- patient_info$race[1]
     
-    paste("Patient", sub_id, "-", gender, ",", age, "years old,", tolower(race))
+    paste("Patient", sub_id, "-", gender, ",", 
+          age, "years old,", tolower(race))
   })
   
   # Retrieve patient ADT (Admission, Discharge, Transfer) records
@@ -302,7 +310,8 @@ server <- function(input, output, session) {
       
       # Extract lab event timestamps
       labtime <- labevents_info %>% pull(charttime)
-      procedures$chartdate <- as.POSIXct(as.character(procedures$chartdate), format = "%Y-%m-%d")
+      procedures$chartdate <- as.POSIXct(as.character(procedures$chartdate), 
+                                         format = "%Y-%m-%d")
       
       # Generate subtitle with top 3 diagnoses
       plot_subtitle <- paste(diagnoses$long_title, collapse = "\n")
@@ -322,7 +331,8 @@ server <- function(input, output, session) {
         
         # **Lab Events (Black markers with transparency)**
         geom_point(data = data.frame(charttime = labtime, y = "Lab"),
-                   aes(x = charttime, y = y), shape = 3, color = "black", alpha = 0.6) +
+                   aes(x = charttime, y = y), shape = 3, 
+                   color = "black", alpha = 0.6) +
         
         # **Procedures (Different shapes & colors)**
         geom_point(data = procedures, 
@@ -364,8 +374,10 @@ server <- function(input, output, session) {
       chartevents_info <- chartevents_info_reactive()
       
       ggplot(chartevents_info) +
-        geom_line(aes(x = charttime, y = value, group = itemid, color = itemid), linewidth = 1.2) + 
-        geom_point(aes(x = charttime, y = value, color = itemid), size = 2.3, alpha = 0.65) +
+        geom_line(aes(x = charttime, y = value, group = itemid, 
+                      color = itemid), linewidth = 1.2) + 
+        geom_point(aes(x = charttime, y = value, color = itemid), 
+                   size = 2.3, alpha = 0.65) +
         
         # **Facet by Item and Stay ID**
         facet_grid(itemid ~ stay_id, scales = "free") +

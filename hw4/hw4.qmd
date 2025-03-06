@@ -325,7 +325,8 @@ mimic_icu_cohort <- mimic_icu_cohort |>
     race = case_when(
       str_detect(race, regex("^ASIAN", ignore_case = TRUE)) ~ "ASIAN",
       str_detect(race, regex("^BLACK", ignore_case = TRUE)) ~ "BLACK",
-      str_detect(race, regex("HISPANIC|LATINO", ignore_case = TRUE)) ~ "HISPANIC",
+      str_detect(race, regex("HISPANIC|LATINO", 
+                             ignore_case = TRUE)) ~ "HISPANIC",
       str_detect(race, regex("^WHITE", ignore_case = TRUE)) ~ "WHITE",
       TRUE ~ "Other"  # Assign everything else to "Other"
     )
@@ -352,7 +353,6 @@ mimic_icu_cohort |>
             "anchor_year_group")) |>
   tbl_summary(by = "los_long")
 ```
-
 
 ### Q1.9 Save the final tibble
 
