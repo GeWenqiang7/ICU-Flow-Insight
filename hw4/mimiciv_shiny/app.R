@@ -211,7 +211,8 @@ server <- function(input, output, session) {
     sub_id <- as.integer(input$patient_id)
     
     transfer_info |>
-      filter(subject_id == sub_id & eventtype != "discharge") |>
+      filter(subject_id == sub_id & 
+               eventtype != "discharge") |>
       collect()
   })
   
@@ -250,10 +251,13 @@ server <- function(input, output, session) {
       select(seq_num, icd_code, icd_version) |>
       left_join(diagnoses_id, by = c("icd_code" = "icd_code", 
                                      "icd_version" = "icd_version")) |>
-      select(long_title) |>
+      select(seq_num, long_title) |>
+      distinct(long_title, .keep_all = TRUE) |>  # 确保保留 seq_num
+      arrange(seq_num) |>  # 按 seq_num 排序，保证重要性
       collect() |>
-      slice(1:3)
+      slice(1:3) # 选取前 3 个不同的 long_title
   })
+  
   
   # 获取患者的 Vitals
   chartevents_info_reactive <- reactive({
