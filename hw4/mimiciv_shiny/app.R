@@ -16,12 +16,15 @@ con_bq <- dbConnect(
   dataset = "mimiciv_3_1",
   billing = "biostat-203b-2025-winter"
 )
+
 transfer_info <- tbl(con_bq, "transfers")
 labevents_info <- tbl(con_bq, "labevents")
 procedures_info <- tbl(con_bq, "procedures_icd")
 procedures_id <- tbl(con_bq, "d_icd_procedures")
+
 diagnoses_info <- tbl(con_bq, "diagnoses_icd")
 diagnoses_id <- tbl(con_bq, "d_icd_diagnoses")
+
 chartevents_info <- tbl(con_bq, "chartevents")
 
 # UI
@@ -251,13 +254,15 @@ server <- function(input, output, session) {
     diagnoses_info |>
       filter(subject_id == sub_id) |>
       select(seq_num, icd_code, icd_version) |>
+      # Ensure unique (icd_code, icd_version) combinations before joining
+      distinct(icd_code, icd_version) |> 
+      # Left join to get long_title after filtering unique values
       left_join(diagnoses_id, by = c("icd_code" = "icd_code", 
                                      "icd_version" = "icd_version")) |>
-      select(seq_num, long_title) |>
-      distinct(long_title, .keep_all = TRUE) |>  # Ensure unique long_title
-      arrange(seq_num) |>  # Prioritize diagnoses with smaller seq_num
+      select(long_title) |>
       collect() |>
-      slice(1:3) # Select the top 3 unique long_title
+      # Select the top 3 unique diagnoses
+      slice(1:3) 
   })
   
   # Retrieve patient ICU Vitals
