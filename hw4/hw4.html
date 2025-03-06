@@ -3104,7 +3104,7 @@ loaded via a namespace (and not attached):
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>memuse<span class="sc">::</span><span class="fu">Sys.meminfo</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Totalram:  7.686 GiB 
-Freeram:   6.018 GiB </code></pre>
+Freeram:   5.426 GiB </code></pre>
 </div>
 </div>
 <p>Load database libraries and the tidyverse frontend:</p>
@@ -4215,7 +4215,7 @@ ORDER BY is ignored in subqueries without LIMIT
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort <span class="ot">&lt;-</span> mimic_icu_cohort <span class="sc">|&gt;</span></span>
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort <span class="sc">|&gt;</span></span>
 <span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(<span class="st">&quot;subject_id&quot;</span>, <span class="st">&quot;hadm_id&quot;</span>, <span class="st">&quot;stay_id&quot;</span>,</span>
 <span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;intime&quot;</span>, <span class="st">&quot;outtime&quot;</span>, <span class="st">&quot;admittime&quot;</span>,<span class="st">&quot;dischtime&quot;</span>,</span>
 <span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;deathtime&quot;</span>, <span class="st">&quot;admit_provider_id&quot;</span>, <span class="st">&quot;edregtime&quot;</span>,</span>
@@ -4228,24 +4228,22 @@ The following errors were returned during `tbl_summary()`:
 ✖ For variable `dod` (`los_long = FALSE`) and &quot;p75&quot; statistic: * not defined
   for &quot;Date&quot; objects</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Now print the summary table output</span></span>
-<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 
-<div id="wtgbcyyqhm" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#wtgbcyyqhm table {
+<div id="fjduenhifa" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#fjduenhifa table {
 font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 -webkit-font-smoothing: antialiased;
 -moz-osx-font-smoothing: grayscale;
 }
-#wtgbcyyqhm thead, #wtgbcyyqhm tbody, #wtgbcyyqhm tfoot, #wtgbcyyqhm tr, #wtgbcyyqhm td, #wtgbcyyqhm th {
+#fjduenhifa thead, #fjduenhifa tbody, #fjduenhifa tfoot, #fjduenhifa tr, #fjduenhifa td, #fjduenhifa th {
 border-style: none;
 }
-#wtgbcyyqhm p {
+#fjduenhifa p {
 margin: 0;
 padding: 0;
 }
-#wtgbcyyqhm .gt_table {
+#fjduenhifa .gt_table {
 display: table;
 border-collapse: collapse;
 line-height: normal;
@@ -4270,11 +4268,11 @@ border-left-style: none;
 border-left-width: 2px;
 border-left-color: #D3D3D3;
 }
-#wtgbcyyqhm .gt_caption {
+#fjduenhifa .gt_caption {
 padding-top: 4px;
 padding-bottom: 4px;
 }
-#wtgbcyyqhm .gt_title {
+#fjduenhifa .gt_title {
 color: #333333;
 font-size: 125%;
 font-weight: initial;
@@ -4285,7 +4283,7 @@ padding-right: 5px;
 border-bottom-color: #FFFFFF;
 border-bottom-width: 0;
 }
-#wtgbcyyqhm .gt_subtitle {
+#fjduenhifa .gt_subtitle {
 color: #333333;
 font-size: 85%;
 font-weight: initial;
@@ -4296,7 +4294,7 @@ padding-right: 5px;
 border-top-color: #FFFFFF;
 border-top-width: 0;
 }
-#wtgbcyyqhm .gt_heading {
+#fjduenhifa .gt_heading {
 background-color: #FFFFFF;
 text-align: center;
 border-bottom-color: #FFFFFF;
@@ -4307,12 +4305,12 @@ border-right-style: none;
 border-right-width: 1px;
 border-right-color: #D3D3D3;
 }
-#wtgbcyyqhm .gt_bottom_border {
+#fjduenhifa .gt_bottom_border {
 border-bottom-style: solid;
 border-bottom-width: 2px;
 border-bottom-color: #D3D3D3;
 }
-#wtgbcyyqhm .gt_col_headings {
+#fjduenhifa .gt_col_headings {
 border-top-style: solid;
 border-top-width: 2px;
 border-top-color: #D3D3D3;
@@ -4326,7 +4324,7 @@ border-right-style: none;
 border-right-width: 1px;
 border-right-color: #D3D3D3;
 }
-#wtgbcyyqhm .gt_col_heading {
+#fjduenhifa .gt_col_heading {
 color: #333333;
 background-color: #FFFFFF;
 font-size: 100%;
@@ -4345,7 +4343,7 @@ padding-left: 5px;
 padding-right: 5px;
 overflow-x: hidden;
 }
-#wtgbcyyqhm .gt_column_spanner_outer {
+#fjduenhifa .gt_column_spanner_outer {
 color: #333333;
 background-color: #FFFFFF;
 font-size: 100%;
@@ -4356,13 +4354,13 @@ padding-bottom: 0;
 padding-left: 4px;
 padding-right: 4px;
 }
-#wtgbcyyqhm .gt_column_spanner_outer:first-child {
+#fjduenhifa .gt_column_spanner_outer:first-child {
 padding-left: 0;
 }
-#wtgbcyyqhm .gt_column_spanner_outer:last-child {
+#fjduenhifa .gt_column_spanner_outer:last-child {
 padding-right: 0;
 }
-#wtgbcyyqhm .gt_column_spanner {
+#fjduenhifa .gt_column_spanner {
 border-bottom-style: solid;
 border-bottom-width: 2px;
 border-bottom-color: #D3D3D3;
@@ -4373,10 +4371,10 @@ overflow-x: hidden;
 display: inline-block;
 width: 100%;
 }
-#wtgbcyyqhm .gt_spanner_row {
+#fjduenhifa .gt_spanner_row {
 border-bottom-style: hidden;
 }
-#wtgbcyyqhm .gt_group_heading {
+#fjduenhifa .gt_group_heading {
 padding-top: 8px;
 padding-bottom: 8px;
 padding-left: 5px;
@@ -4401,7 +4399,7 @@ border-right-color: #D3D3D3;
 vertical-align: middle;
 text-align: left;
 }
-#wtgbcyyqhm .gt_empty_group_heading {
+#fjduenhifa .gt_empty_group_heading {
 padding: 0.5px;
 color: #333333;
 background-color: #FFFFFF;
@@ -4415,13 +4413,13 @@ border-bottom-width: 2px;
 border-bottom-color: #D3D3D3;
 vertical-align: middle;
 }
-#wtgbcyyqhm .gt_from_md > :first-child {
+#fjduenhifa .gt_from_md > :first-child {
 margin-top: 0;
 }
-#wtgbcyyqhm .gt_from_md > :last-child {
+#fjduenhifa .gt_from_md > :last-child {
 margin-bottom: 0;
 }
-#wtgbcyyqhm .gt_row {
+#fjduenhifa .gt_row {
 padding-top: 8px;
 padding-bottom: 8px;
 padding-left: 5px;
@@ -4439,7 +4437,7 @@ border-right-color: #D3D3D3;
 vertical-align: middle;
 overflow-x: hidden;
 }
-#wtgbcyyqhm .gt_stub {
+#fjduenhifa .gt_stub {
 color: #333333;
 background-color: #FFFFFF;
 font-size: 100%;
@@ -4451,7 +4449,7 @@ border-right-color: #D3D3D3;
 padding-left: 5px;
 padding-right: 5px;
 }
-#wtgbcyyqhm .gt_stub_row_group {
+#fjduenhifa .gt_stub_row_group {
 color: #333333;
 background-color: #FFFFFF;
 font-size: 100%;
@@ -4464,13 +4462,13 @@ padding-left: 5px;
 padding-right: 5px;
 vertical-align: top;
 }
-#wtgbcyyqhm .gt_row_group_first td {
+#fjduenhifa .gt_row_group_first td {
 border-top-width: 2px;
 }
-#wtgbcyyqhm .gt_row_group_first th {
+#fjduenhifa .gt_row_group_first th {
 border-top-width: 2px;
 }
-#wtgbcyyqhm .gt_summary_row {
+#fjduenhifa .gt_summary_row {
 color: #333333;
 background-color: #FFFFFF;
 text-transform: inherit;
@@ -4479,14 +4477,14 @@ padding-bottom: 8px;
 padding-left: 5px;
 padding-right: 5px;
 }
-#wtgbcyyqhm .gt_first_summary_row {
+#fjduenhifa .gt_first_summary_row {
 border-top-style: solid;
 border-top-color: #D3D3D3;
 }
-#wtgbcyyqhm .gt_first_summary_row.thick {
+#fjduenhifa .gt_first_summary_row.thick {
 border-top-width: 2px;
 }
-#wtgbcyyqhm .gt_last_summary_row {
+#fjduenhifa .gt_last_summary_row {
 padding-top: 8px;
 padding-bottom: 8px;
 padding-left: 5px;
@@ -4495,7 +4493,7 @@ border-bottom-style: solid;
 border-bottom-width: 2px;
 border-bottom-color: #D3D3D3;
 }
-#wtgbcyyqhm .gt_grand_summary_row {
+#fjduenhifa .gt_grand_summary_row {
 color: #333333;
 background-color: #FFFFFF;
 text-transform: inherit;
@@ -4504,7 +4502,7 @@ padding-bottom: 8px;
 padding-left: 5px;
 padding-right: 5px;
 }
-#wtgbcyyqhm .gt_first_grand_summary_row {
+#fjduenhifa .gt_first_grand_summary_row {
 padding-top: 8px;
 padding-bottom: 8px;
 padding-left: 5px;
@@ -4513,7 +4511,7 @@ border-top-style: double;
 border-top-width: 6px;
 border-top-color: #D3D3D3;
 }
-#wtgbcyyqhm .gt_last_grand_summary_row_top {
+#fjduenhifa .gt_last_grand_summary_row_top {
 padding-top: 8px;
 padding-bottom: 8px;
 padding-left: 5px;
@@ -4522,10 +4520,10 @@ border-bottom-style: double;
 border-bottom-width: 6px;
 border-bottom-color: #D3D3D3;
 }
-#wtgbcyyqhm .gt_striped {
+#fjduenhifa .gt_striped {
 background-color: rgba(128, 128, 128, 0.05);
 }
-#wtgbcyyqhm .gt_table_body {
+#fjduenhifa .gt_table_body {
 border-top-style: solid;
 border-top-width: 2px;
 border-top-color: #D3D3D3;
@@ -4533,7 +4531,7 @@ border-bottom-style: solid;
 border-bottom-width: 2px;
 border-bottom-color: #D3D3D3;
 }
-#wtgbcyyqhm .gt_footnotes {
+#fjduenhifa .gt_footnotes {
 color: #333333;
 background-color: #FFFFFF;
 border-bottom-style: none;
@@ -4546,7 +4544,7 @@ border-right-style: none;
 border-right-width: 2px;
 border-right-color: #D3D3D3;
 }
-#wtgbcyyqhm .gt_footnote {
+#fjduenhifa .gt_footnote {
 margin: 0px;
 font-size: 90%;
 padding-top: 4px;
@@ -4554,7 +4552,7 @@ padding-bottom: 4px;
 padding-left: 5px;
 padding-right: 5px;
 }
-#wtgbcyyqhm .gt_sourcenotes {
+#fjduenhifa .gt_sourcenotes {
 color: #333333;
 background-color: #FFFFFF;
 border-bottom-style: none;
@@ -4567,64 +4565,64 @@ border-right-style: none;
 border-right-width: 2px;
 border-right-color: #D3D3D3;
 }
-#wtgbcyyqhm .gt_sourcenote {
+#fjduenhifa .gt_sourcenote {
 font-size: 90%;
 padding-top: 4px;
 padding-bottom: 4px;
 padding-left: 5px;
 padding-right: 5px;
 }
-#wtgbcyyqhm .gt_left {
+#fjduenhifa .gt_left {
 text-align: left;
 }
-#wtgbcyyqhm .gt_center {
+#fjduenhifa .gt_center {
 text-align: center;
 }
-#wtgbcyyqhm .gt_right {
+#fjduenhifa .gt_right {
 text-align: right;
 font-variant-numeric: tabular-nums;
 }
-#wtgbcyyqhm .gt_font_normal {
+#fjduenhifa .gt_font_normal {
 font-weight: normal;
 }
-#wtgbcyyqhm .gt_font_bold {
+#fjduenhifa .gt_font_bold {
 font-weight: bold;
 }
-#wtgbcyyqhm .gt_font_italic {
+#fjduenhifa .gt_font_italic {
 font-style: italic;
 }
-#wtgbcyyqhm .gt_super {
+#fjduenhifa .gt_super {
 font-size: 65%;
 }
-#wtgbcyyqhm .gt_footnote_marks {
+#fjduenhifa .gt_footnote_marks {
 font-size: 75%;
 vertical-align: 0.4em;
 position: initial;
 }
-#wtgbcyyqhm .gt_asterisk {
+#fjduenhifa .gt_asterisk {
 font-size: 100%;
 vertical-align: 0;
 }
-#wtgbcyyqhm .gt_indent_1 {
+#fjduenhifa .gt_indent_1 {
 text-indent: 5px;
 }
-#wtgbcyyqhm .gt_indent_2 {
+#fjduenhifa .gt_indent_2 {
 text-indent: 10px;
 }
-#wtgbcyyqhm .gt_indent_3 {
+#fjduenhifa .gt_indent_3 {
 text-indent: 15px;
 }
-#wtgbcyyqhm .gt_indent_4 {
+#fjduenhifa .gt_indent_4 {
 text-indent: 20px;
 }
-#wtgbcyyqhm .gt_indent_5 {
+#fjduenhifa .gt_indent_5 {
 text-indent: 25px;
 }
-#wtgbcyyqhm .katex-display {
+#fjduenhifa .katex-display {
 display: inline-flex !important;
 margin-bottom: 0.75em !important;
 }
-#wtgbcyyqhm div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#fjduenhifa div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
 height: 0px !important;
 }
 </style>
@@ -4985,20 +4983,20 @@ N = 48,107</span></span><span class="gt_footnote_marks" style="white-space:nowra
 <h3 class="anchored" data-anchor-id="q1.9-save-the-final-tibble">Q1.9 Save the final tibble</h3>
 <p>Save the final tibble to an R data file <code>mimic_icu_cohort.rds</code> in the <code>mimiciv_shiny</code> folder.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="co"># make a directory mimiciv_shiny</span></span>
-<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">dir.exists</span>(<span class="st">&quot;mimiciv_shiny&quot;</span>)) {</span>
-<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dir.create</span>(<span class="st">&quot;mimiciv_shiny&quot;</span>)</span>
-<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a><span class="co"># save the final tibble</span></span>
-<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort <span class="sc">|&gt;</span></span>
-<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">write_rds</span>(<span class="st">&quot;mimiciv_shiny/mimic_icu_cohort.rds&quot;</span>, <span class="at">compress =</span> <span class="st">&quot;gz&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="co"># make a directory mimiciv_shiny</span></span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">dir.exists</span>(<span class="st">&quot;mimiciv_shiny&quot;</span>)) {</span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dir.create</span>(<span class="st">&quot;mimiciv_shiny&quot;</span>)</span>
+<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a><span class="co"># save the final tibble</span></span>
+<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort <span class="sc">|&gt;</span></span>
+<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">write_rds</span>(<span class="st">&quot;mimiciv_shiny/mimic_icu_cohort.rds&quot;</span>, <span class="at">compress =</span> <span class="st">&quot;gz&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Close database connection and clear workspace.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">exists</span>(<span class="st">&quot;con_bq&quot;</span>)) {</span>
-<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dbDisconnect</span>(con_bq)</span>
-<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">exists</span>(<span class="st">&quot;con_bq&quot;</span>)) {</span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dbDisconnect</span>(con_bq)</span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Although it is not a good practice to add big data files to Git, for grading purpose, please add <code>mimic_icu_cohort.rds</code> to your Git repository.</p>
 </section>

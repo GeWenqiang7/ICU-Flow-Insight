@@ -344,15 +344,13 @@ mimic_icu_cohort <- mimic_icu_cohort |>
 ```
 
 ```{r}
-mimic_icu_cohort <- mimic_icu_cohort |>
+mimic_icu_cohort |>
   select(-c("subject_id", "hadm_id", "stay_id",
             "intime", "outtime", "admittime","dischtime",
             "deathtime", "admit_provider_id", "edregtime",
             "edouttime", "anchor_age", "anchor_year", 
             "anchor_year_group")) |>
   tbl_summary(by = "los_long")
-# Now print the summary table output
-mimic_icu_cohort
 ```
 
 
