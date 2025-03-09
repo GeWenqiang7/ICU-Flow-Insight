@@ -39,7 +39,7 @@ ui <- fluidPage(
                sidebarPanel(
                  # Variable group selection
                  selectInput("variable_group", "Variable Group", 
-                             choices = c("Demographics" = "demo",
+                             choices = c("Demo" = "demo",
                                          "Lab Measurements" = "lab_measure",
                                          "Vitals" = "vital"),
                              selected = "demo"),
@@ -86,7 +86,7 @@ server <- function(input, output, session) {
   # Define variable groups
   variable_choices <- list(
     demo = c("age_intime", "race", "gender", "language", "insurance", 
-             "material_status"), 
+             "marital_status"), 
     lab_measure = c("hematocrit", "bicarbonate", "glucose", "chloride", "wbc", 
                     "potassium", "creatinine", "sodium"),
     vital = c("heart_rate", "temperature_fahrenheit",
@@ -139,35 +139,43 @@ server <- function(input, output, session) {
     
     plot_data <- mimic_icu_cohort
     
-    # Filter numeric variables based on selected range from the slider
+    # Debugging: Print variable name and check if data exists
+    print(variable)
+    print(head(plot_data[[variable]]))
+    
+    if (is.null(plot_data[[variable]]) || all(is.na(plot_data[[variable]]))) {
+      stop("Error: Selected variable has no valid data.")
+    }
+    
+    # Filter numeric variables based on range slider
     if (!is.null(input$xlim) && is.numeric(plot_data[[variable]])) {
       plot_data <- plot_data %>%
         filter(between(!!sym(variable), input$xlim[1], input$xlim[2]))
+      
+      print(head(plot_data[[variable]]))  # Debug: Print filtered data
     }
     
-    # **For numerical variables: Histogram**
+    # **Plotting logic**
     if (is.numeric(plot_data[[variable]])) {
-      ggplot(plot_data, aes_string(x = variable)) +
+      ggplot(plot_data, aes(x = !!sym(variable))) +  # FIXED: Using sym() here
         geom_histogram(binwidth = 1, fill = "steelblue", alpha = 0.7) +
         theme_minimal() +
         labs(title = paste("Histogram of", variable),
              x = variable, y = "Count")
       
-      # **For categorical variables: Bar Chart**
     } else {
       plot_data <- plot_data %>%
-        count(!!sym(variable), name = "count")  
-      # Count occurrences of each category
+        count(!!sym(variable), name = "count")
       
-      ggplot(plot_data, aes_string(x = variable, y = "count")) +
+      ggplot(plot_data, aes(x = !!sym(variable), y = count)) +
         geom_bar(stat = "identity", fill = "coral", alpha = 0.7) +
         theme_minimal() +
         labs(title = paste("Bar Chart of", variable), x = variable, 
              y = "Count") +
-        coord_flip()  # Flip X-axis for better readability
+        coord_flip()
     }
   })
-
+  
   
   output$summaryTable <- renderDT({
     req(input$variable)
@@ -192,7 +200,7 @@ server <- function(input, output, session) {
       colnames(summary_data) <- c("Category", "Count")
     }
     
-    datatable(summary_data, options = list(pageLength = 10, scrollX = TRUE))
+    datatable(summary_data, options = list(dom = 't',paging = FALSE))
   })
   
   
@@ -328,6 +336,7 @@ server <- function(input, output, session) {
               color = careunit, linewidth = line_size), 
           alpha = 0.8
         ) +
+        scale_linewidth_continuous(guide = "none")+
         
         # **Lab Events (Black markers with transparency)**
         geom_point(data = data.frame(charttime = labtime, y = "Lab"),
@@ -342,6 +351,10 @@ server <- function(input, output, session) {
         
         scale_shape_manual(values = c(16, 17, 18, 15, 3, 8), 
                            labels = unique(procedures$long_title)) +
+        guides(
+          shape = guide_legend(title = "Procedure"),  # **Rename long_title to Procedure**
+          color = guide_legend(title = "Care Unit")  # **Rename careunit to Care Unit**
+        ) +  
         
         # **Title and Labels**
         labs(
@@ -370,7 +383,7 @@ server <- function(input, output, session) {
     
     # **ICU Vitals Visualization**
     else {
-      plot_title <- paste("Patient", input$patient_id, "- ICU Vitals Over Time")
+      plot_title <- paste("Patient", input$patient_id, "- ICU stays - Vitals")
       chartevents_info <- chartevents_info_reactive()
       
       ggplot(chartevents_info) +
