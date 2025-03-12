@@ -1,6 +1,6 @@
 *Wenqiang Ge*
 
-### Overall Grade: 241/250
+### Overall Grade: 243/250
 
 ### Late penalty
 
@@ -50,12 +50,11 @@ Q1.8 summaries should roughly match those given.
 	- Needed line "library(bigrquery)" at the beginning (-2)
 -   If necessary, are there clear instructions, either in report or in a separate file, how to reproduce the results?
 
-### R code style: 18/20
+### R code style: 20/20
 
 For bash commands, only enforce the 80-character rule. Take 2 pts off for each violation. 
 
 -   [Rule 2.6](https://style.tidyverse.org/syntax.html#long-function-calls) The maximum line length is 80 characters. Long URLs and strings are exceptions.  
-	- Lines 357, 358 (-2)
 -   [Rule 2.5.1](https://style.tidyverse.org/syntax.html#indenting) When indenting your code, use two spaces.  
 
 -   [Rule 2.2.4](https://style.tidyverse.org/syntax.html#infix-operators) Place spaces around all infix operators (=, +, -, &lt;-, etc.).  
