@@ -18,19 +18,94 @@ format:
   #   keep-tex: true
   #   number-sections: true
   #   highlight-style: tango
-  
 ---
 
 ## Predicting ICU duration
 
-Using the ICU cohort `mimiciv_icu_cohort.rds` you built in Homework 4, develop at least three machine learning approaches (logistic regression with enet regularization, random forest, boosting, SVM, MLP, etc) plus a model stacking approach for predicting whether a patient's ICU stay will be longer than 2 days. You should use the `los_long` variable as the outcome. You algorithms can use patient demographic information (gender, age at ICU `intime`, marital status, race), ICU admission information (first care unit), the last lab measurements before the ICU stay, and first vital measurements during ICU stay as features. You are welcome to use any feature engineering techniques you think are appropriate; but make sure to not use features that are not available at an ICU stay's `intime`. For instance, `last_careunit` cannot be used in your algorithms. 
+Using the ICU cohort `mimiciv_icu_cohort.rds` you built in Homework 4, develop at least three machine learning approaches (logistic regression with enet regularization, random forest, boosting, SVM, MLP, etc) plus a model stacking approach for predicting whether a patient's ICU stay will be longer than 2 days. You should use the `los_long` variable as the outcome. You algorithms can use patient demographic information (gender, age at ICU `intime`, marital status, race), ICU admission information (first care unit), the last lab measurements before the ICU stay, and first vital measurements during ICU stay as features. You are welcome to use any feature engineering techniques you think are appropriate; but make sure to not use features that are not available at an ICU stay's `intime`. For instance, `last_careunit` cannot be used in your algorithms.
 
-1. Data preprocessing and feature engineering.
+1.  Data preprocessing and feature engineering.
+
+```{r}
+# Load libraries
+library(GGally)
+library(gtsummary)
+library(ranger)
+library(tidyverse)
+library(tidymodels)
+library(xgboost)
+library(doParallel)
+library(stacks)
+library(keras)
+library(dplyr)
+
+
+```
+
+```{r}
+#loading data
+mimic_icu_cohort <- readRDS("mimic_icu_cohort.rds")
+lab <- c("creatinine", "potassium", "sodium", "chloride", "bicarbonate", 
+              "hematocrit", "glucose", "wbc")
+
+vital <- c("heart_rate", "non-invasive_blood_pressure_systolic", 
+                "non-invasive_blood_pressure_diastolic", 
+                "temperature_fahrenheit", "respiratory_rate")
+
+#Select the variables
+mimic_icu_cohort <- mimic_icu_cohort |>
+  select(c("subject_id", "hadm_id", "stay_id","gender",
+            "first_careunit", "los",
+            "insurance","marital_status","race",
+            "anchor_age", "anchor_year",
+            "age_intime",
+            lab,vital,"los_long")) |>
+  arrange("subject_id", "hadm_id", "stay_id") 
+
+```
+
+```{r}
+# replace NA values with the mean of the column
+mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
+  if (is.numeric(x)) {
+    x[is.na(x)] <- mean(x, na.rm = TRUE)  # Replace NA with the mean value
+  }
+  return(x)
+})
+
+# For character or factor variables, replace NA with 0, and label other unique values 
+mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
+  if (is.factor(x) || is.character(x)) {
+    # Convert factor to character type
+    x <- as.character(x)
+    # Replace NA with "0"
+    x[is.na(x)] <- "0"
+    # Convert to factor and then to numeric
+    x <- factor(x)
+    return(as.numeric(x))  # Convert factor levels to numeric values
+  }
+  return(x)
+})
+
+# gender column, label "male" as 0, and "female" as 1
+mimic_icu_cohort$gender <- ifelse(mimic_icu_cohort$gender == "male", 0, 1)
+
+# los_long column, label FALSE as "No", and TRUE as "Yes"
+mimic_icu_cohort$los_long <- ifelse(mimic_icu_cohort$los_long == FALSE, "No", "Yes")
+
+head(mimic_icu_cohort)
+```
+
 ```{r}
 
 ```
 
-2. Partition data into 50% training set and 50% test set. Stratify partitioning according to `los_long`. For grading purpose, sort the data by `subject_id`, `hadm_id`, and `stay_id` and use the seed `203` for the initial data split. Below is the sample code.
+```{r}
+
+```
+
+2.  Partition data into 50% training set and 50% test set. Stratify partitioning according to `los_long`. For grading purpose, sort the data by `subject_id`, `hadm_id`, and `stay_id` and use the seed `203` for the initial data split. Below is the sample code.
+
 ```{r}
 #| eval: false
 set.seed(203)
@@ -47,9 +122,10 @@ data_split <- initial_split(
   )
 ```
 
-3. Train and tune the models using the training set.
+3.  Train and tune the models using the training set.
+
 ```{r}
 
 ```
 
-4. Compare model classification performance on the test set. Report both the area under ROC curve and accuracy for each machine learning algorithm and the model stacking. Interpret the results. What are the most important features in predicting long ICU stays? How do the models compare in terms of performance and interpretability?
+4.  Compare model classification performance on the test set. Report both the area under ROC curve and accuracy for each machine learning algorithm and the model stacking. Interpret the results. What are the most important features in predicting long ICU stays? How do the models compare in terms of performance and interpretability?
