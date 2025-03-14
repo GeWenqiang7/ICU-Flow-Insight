@@ -41,7 +41,7 @@ library(dplyr)
 library(e1071)
 library(rsample)
 library(glmnet)
-
+library(vip)
 ```
 
 ```{r}
@@ -64,11 +64,13 @@ mimic_icu_cohort <- mimic_icu_cohort |>
            "los_long")) |>
   arrange("subject_id", "hadm_id", "stay_id") 
 
-mimic_icu_cohort$gender <- ifelse(mimic_icu_cohort$gender == "M",0,1)
-mimic_icu_cohort$gender <- factor(mimic_icu_cohort$gender)
 ```
 
 ```{r}
+#Convert gender to factor variables
+mimic_icu_cohort$gender <- ifelse(mimic_icu_cohort$gender == "M",0,1)
+mimic_icu_cohort$gender <- factor(mimic_icu_cohort$gender)
+
 # For character or factor variables, replace NA with 0, and label other unique values
 mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
   # Only modify character or factor columns, but skip 'gender'
@@ -94,7 +96,7 @@ mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
 ```
 
 ```{r}
-# 1. Check for outliers in numeric variables
+# Check for outliers in numeric variables
 mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
   if (is.numeric(x)) {
     # Calculate the first (Q1) and third (Q3) quartiles, and the IQR (Interquartile Range)
@@ -114,7 +116,7 @@ mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
 ```
 
 ```{r}
-# replace NA values with the mean of the column
+#Replace NA values with the mean of the column
 mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
   if (is.numeric(x)) {
     x[is.na(x)] <- mean(x, na.rm = TRUE)  # Replace NA with the mean value
@@ -131,7 +133,7 @@ mimic_icu_cohort$los_long <- factor(mimic_icu_cohort$los_long, levels = c(FALSE,
 mimic_icu_cohort <- mimic_icu_cohort %>%
   drop_na(los_long)
 
-
+#Convert other variables to factors
 mimic_icu_cohort$marital_status <- factor(mimic_icu_cohort$marital_status)
 mimic_icu_cohort$race <- factor(mimic_icu_cohort$race)
 mimic_icu_cohort$first_careunit <- factor(mimic_icu_cohort$first_careunit)
@@ -203,9 +205,9 @@ logit_wf <- workflow() |>
 
 ```{r}
 logit_grid <- grid_regular(
-  penalty(range = c(-5, 2)), 
+  penalty(range = c(-5, 3)), 
   mixture(),
-  levels = c(25, 4)
+  levels = c(35, 4)
 )
 ```
 
@@ -232,8 +234,6 @@ if (file.exists("logit_res.rds")) {
 logit_res
 ```
 
-#### Finalize the model
-
 ```{r}
 # visualize the CV results
 logit_res |>
@@ -253,6 +253,8 @@ logit_res |>
   show_best(metric = "roc_auc")
 ```
 
+#### Finalize the model
+
 ```{r}
 # select the best model
 best_logit <- logit_res |>
@@ -271,7 +273,7 @@ final_logit
 # Fit the whole training set, then predict the test cases
 set.seed(203)
 final_logit_fit <- 
-  final_logit_wf |>
+  final_logit |>
   last_fit(data_split)
 final_logit_fit
 
@@ -285,7 +287,11 @@ final_logit_fit |>
 #### Visualize the final model
 
 ```{r}
+final_logic_tree <- extract_workflow(final_logit_fit)
 
+final_logic_tree |>
+  extract_fit_parsnip() |>
+  vip()
 ```
 
 ### Random Forest
