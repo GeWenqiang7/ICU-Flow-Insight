@@ -38,13 +38,15 @@ library(doParallel)
 library(stacks)
 library(keras)
 library(dplyr)
-
+library(e1071)
+library(rsample)
+library(glmnet)
 
 ```
 
 ```{r}
 #loading data
-mimic_icu_cohort <- readRDS("mimic_icu_cohort.rds")
+mimic_icu_cohort <- readRDS("../hw4/mimiciv_shiny/mimic_icu_cohort.rds")
 lab <- c("creatinine", "potassium", "sodium", "chloride", "bicarbonate", 
               "hematocrit", "glucose", "wbc")
 
@@ -54,14 +56,61 @@ vital <- c("heart_rate", "non-invasive_blood_pressure_systolic",
 
 #Select the variables
 mimic_icu_cohort <- mimic_icu_cohort |>
-  select(c("subject_id", "hadm_id", "stay_id","gender",
-            "first_careunit", "los",
-            "insurance","marital_status","race",
-            "anchor_age", "anchor_year",
-            "age_intime",
-            lab,vital,"los_long")) |>
+  select(c("subject_id", "hadm_id", "stay_id",
+           "gender","first_careunit", 
+            "insurance","marital_status",
+           "race","age_intime",
+            all_of(lab), all_of(vital),
+           "los_long")) |>
   arrange("subject_id", "hadm_id", "stay_id") 
 
+mimic_icu_cohort$gender <- ifelse(mimic_icu_cohort$gender == "M",0,1)
+mimic_icu_cohort$gender <- factor(mimic_icu_cohort$gender)
+```
+
+```{r}
+# For character or factor variables, replace NA with 0, and label other unique values
+mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
+  # Only modify character or factor columns, but skip 'gender'
+  if (is.factor(x) || is.character(x)) {
+    # Skip the 'gender' column
+    if (!"gender" %in% names(mimic_icu_cohort)[
+      which(sapply(mimic_icu_cohort, identical, x))
+      ]) {
+      # Convert to character type if it is not gender
+      x <- as.character(x)
+      
+      # Replace NA with "0"
+      x[is.na(x)] <- "0"
+      
+      # Convert back to factor and then numeric
+      x <- factor(x)
+      return(as.numeric(x))  # Convert factor levels to numeric
+    }
+  }
+  return(x)  # Leave other columns unchanged
+})
+
+```
+
+```{r}
+# 1. Check for outliers in numeric variables
+mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
+  if (is.numeric(x)) {
+    # Calculate the first (Q1) and third (Q3) quartiles, and the IQR (Interquartile Range)
+    Q1 <- quantile(x, 0.25, na.rm = TRUE)
+    Q3 <- quantile(x, 0.75, na.rm = TRUE)
+    IQR_value <- Q3 - Q1
+    
+    # Define the lower and upper limits for outliers using the IQR method
+    lower_limit <- Q1 - 1.5 * IQR_value
+    upper_limit <- Q3 + 1.5 * IQR_value
+    
+    # Replace values outside the defined limits with NA (outliers)
+    x[x < lower_limit | x > upper_limit] <- NA
+  }
+  return(x)
+})
 ```
 
 ```{r}
@@ -72,55 +121,302 @@ mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
   }
   return(x)
 })
+```
 
-# For character or factor variables, replace NA with 0, and label other unique values 
-mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
-  if (is.factor(x) || is.character(x)) {
-    # Convert factor to character type
-    x <- as.character(x)
-    # Replace NA with "0"
-    x[is.na(x)] <- "0"
-    # Convert to factor and then to numeric
-    x <- factor(x)
-    return(as.numeric(x))  # Convert factor levels to numeric values
-  }
-  return(x)
-})
+```{r}
+# Convert los_long to a factor
+mimic_icu_cohort$los_long <- factor(mimic_icu_cohort$los_long, levels = c(FALSE, TRUE))
 
-# gender column, label "male" as 0, and "female" as 1
-mimic_icu_cohort$gender <- ifelse(mimic_icu_cohort$gender == "male", 0, 1)
+# Remove rows where los_long is NA
+mimic_icu_cohort <- mimic_icu_cohort %>%
+  drop_na(los_long)
 
-# los_long column, label FALSE as "No", and TRUE as "Yes"
-mimic_icu_cohort$los_long <- ifelse(mimic_icu_cohort$los_long == FALSE, "No", "Yes")
+
+mimic_icu_cohort$marital_status <- factor(mimic_icu_cohort$marital_status)
+mimic_icu_cohort$race <- factor(mimic_icu_cohort$race)
+mimic_icu_cohort$first_careunit <- factor(mimic_icu_cohort$first_careunit)
+mimic_icu_cohort$insurance <- factor(mimic_icu_cohort$insurance)
 
 head(mimic_icu_cohort)
 ```
 
-```{r}
-
-```
-
-```{r}
-
-```
-
 2.  Partition data into 50% training set and 50% test set. Stratify partitioning according to `los_long`. For grading purpose, sort the data by `subject_id`, `hadm_id`, and `stay_id` and use the seed `203` for the initial data split. Below is the sample code.
 
+#### Initial split into test and non-test sets
+
 ```{r}
-#| eval: false
 set.seed(203)
 
 # sort
-mimiciv_icu_cohort <- mimiciv_icu_cohort |>
+mimic_icu_cohort <- mimic_icu_cohort |>
   arrange(subject_id, hadm_id, stay_id)
 
 data_split <- initial_split(
-  mimiciv_icu_cohort, 
+  mimic_icu_cohort, 
   # stratify by los_long
   strata = "los_long", 
   prop = 0.5
   )
+
+mimic_train <- training(data_split) |>
+  select(-subject_id, -hadm_id, -stay_id)
+dim(mimic_train )
+
+mimic_test <- testing(data_split) |>
+  select(-subject_id, -hadm_id, -stay_id)
+dim(mimic_test)
 ```
+
+#### Recipe
+
+```{r}
+data_recipe <- 
+  recipe(
+    los_long ~ ., 
+    data = mimic_train
+    ) |>
+  step_dummy(all_nominal_predictors()) |>
+  step_zv(all_numeric_predictors()) |>
+  step_normalize(all_numeric_predictors())
+data_recipe
+```
+
+### logistic regression with enet regularization
+
+#### Model & Workflow
+
+```{r}
+# set up the logistic regression model
+logit_model <- logistic_reg(
+  penalty = tune(), 
+  mixture = tune()) |>
+  set_engine("glmnet", 
+             standardize = TRUE)
+  
+logit_wf <- workflow() |>
+  add_recipe(data_recipe) |>
+  add_model(logit_model) |>
+  print()
+```
+
+#### Tuning grid
+
+```{r}
+logit_grid <- grid_regular(
+  penalty(range = c(-5, 2)), 
+  mixture(),
+  levels = c(25, 4)
+)
+```
+
+#### Cross-validation
+
+```{r}
+set.seed(203)
+
+folds <- vfold_cv(mimic_train, v = 5)
+folds
+if (file.exists("logit_res.rds")) {
+  logit_res <- read_rds("logit_res.rds")
+} else {
+  logit_res <- 
+    tune_grid(
+      object = logit_wf, 
+      resamples = folds, 
+      grid = logit_grid,
+      metrics = metric_set(roc_auc, accuracy),
+      control = control_stack_grid()
+    )
+  write_rds(logit_res, "logit_res.rds")
+}
+logit_res
+```
+
+#### Finalize the model
+
+```{r}
+# visualize the CV results
+logit_res |>
+  # aggregate metrics from K folds
+  collect_metrics() |>
+  print(width = Inf) |>
+  filter(.metric == "roc_auc") |>
+  ggplot(mapping = aes(x = penalty, y = mean, 
+                       color = factor(mixture))) +
+  geom_point() +
+  labs(x = "Penalty", y = "CV AUC") +
+  scale_x_log10()
+```
+
+```{r}
+logit_res |>
+  show_best(metric = "roc_auc")
+```
+
+```{r}
+# select the best model
+best_logit <- logit_res |>
+  select_best(metric = "roc_auc")
+best_logit
+```
+
+```{r}
+#Testing
+final_logit <- logit_wf |>
+  finalize_workflow(best_logit)
+final_logit
+```
+
+```{r}
+# Fit the whole training set, then predict the test cases
+set.seed(203)
+final_logit_fit <- 
+  final_logit_wf |>
+  last_fit(data_split)
+final_logit_fit
+
+```
+
+```{r}
+final_logit_fit |> 
+  collect_metrics()
+```
+
+#### Visualize the final model
+
+```{r}
+
+```
+
+### Random Forest
+
+#### Model & Workflow
+
+```{r}
+rf_mod <- 
+  rand_forest(
+    mode = "classification",
+    # Number of predictors randomly sampled in each split
+    mtry = tune(),
+    # Number of trees in ensemble
+    trees = tune()
+  ) |> 
+  set_engine("ranger", importance = "impurity")
+rf_mod
+
+rf_wf <- workflow() |>
+  add_recipe(data_recipe) |>
+  add_model(rf_mod)
+rf_wf
+```
+
+#### Tuning grid
+
+```{r}
+rf_grid <- grid_regular(
+  trees(range = c(300L, 800L)), 
+  mtry(range = c(1L, 5L)),
+  levels = c(10, 10)
+  )
+
+```
+
+#### Cross-validation
+
+```{r}
+if (file.exists("rf_res.rds")) {
+  rf_res <- read_rds("rf_res.rds")
+} else {
+  rf_res <- 
+  tune_grid(
+    object = rf_wf, 
+    resamples = folds, 
+    grid = rf_grid,
+    control = control_stack_grid()
+  )
+  write_rds(rf_res, "rf_res.rds")
+}
+rf_res
+```
+
+```{r}
+
+```
+
+#### Finalize the model
+
+#### Visualize the final model
+
+### Boosting
+
+#### Model & Workflow
+
+```{r}
+boost_mod <- 
+  boost_tree(
+    mode = "classification",
+    trees = 1000, 
+    tree_depth = tune(), 
+    learn_rate = tune()
+  ) |> 
+  set_engine("xgboost")
+boost_mod
+```
+
+#### Tuning grid
+
+```{r}
+boost_wf <- 
+  workflow() |>
+  add_recipe(data_recipe) |>
+  add_model(boost_mod)
+```
+
+```{r}
+boost_grid <- grid_regular(
+  tree_depth(range = c(1L, 3L)),
+  learn_rate(range = c(-5, 2), trans = log10_trans()),
+  levels = c(3, 5)
+  )
+```
+
+#### Cross-validation
+
+```{r}
+library(doParallel)
+registerDoParallel(cores = 4)
+# Cross validation
+set.seed(203)
+
+```
+
+```{r}
+boost_fit <- boost_wf |>
+  tune_grid(
+    resamples = folds,
+    grid = boost_grid,
+    metrics = metric_set(roc_auc, accuracy),
+    control = control_stack_grid()
+  )
+
+boost_fit |> write_rds("./boost_fit.rds")
+```
+
+```{r}
+
+```
+
+#### Finalize the model
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+#### Visualize the final model
 
 3.  Train and tune the models using the training set.
 
