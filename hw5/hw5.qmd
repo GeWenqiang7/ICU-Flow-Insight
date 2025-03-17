@@ -517,38 +517,33 @@ best_rf
 ```
 
 ```{r}
-# final workflow
-final_rf <- rf_wf |>
-  finalize_workflow(best_rf)
-final_rf
+final_rf <- finalize_workflow(rf_wf, best_rf)
+
 ```
 
 ```{r}
-# Access the metrics of the best model after tuning
-best_rf_metrics <- collect_metrics(final_rf)
+final_fit <- final_rf |>
+  last_fit(data_split)
 
-# Print out the metrics
-best_rf_metrics
+final_fit
+```
 
+```{r}
+final_fit |> 
+  collect_metrics()
 ```
 
 #### Visualize the final model
 
 ```{r}
-final_logic_tree <- extract_workflow(final_logit_fit)
+# Extract fitted model
+final_boost_tree <- extract_workflow(final_fit)
 
-final_logic_tree |>
+final_boost_tree |>
   extract_fit_parsnip() |>
   vip()
-
-rm(final_logic_tree,final_logit_fit,
-   final_logit,logit_res,logit_grid)
-```
-
-3.  Train and tune the models using the training set.
-
-```{r}
-
 ```
 
 4.  Compare model classification performance on the test set. Report both the area under ROC curve and accuracy for each machine learning algorithm and the model stacking. Interpret the results. What are the most important features in predicting long ICU stays? How do the models compare in terms of performance and interpretability?
+
+***See Stacking.qmd file.***
