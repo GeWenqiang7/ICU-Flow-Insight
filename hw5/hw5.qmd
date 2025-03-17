@@ -297,34 +297,6 @@ rm(final_logic_tree,final_logit_fit,
    final_logit,logit_res,logit_grid)
 ```
 
-### 
-
-#### Model & Workflow
-
-```{r}
-
-```
-
-#### Tuning grid
-
-```{r}
-
-```
-
-#### Cross-validation
-
-```{r}
-
-```
-
-```{r}
-
-```
-
-#### Finalize the model
-
-#### Visualize the final model
-
 ### Boosting
 
 #### Model & Workflow
@@ -459,6 +431,118 @@ final_boost_tree |>
 
 rm(final_boost_tree,final_boost_fit,
    final_boost_wf,bt_fit,param_grid)
+```
+
+### Random Forest
+
+#### Model & Workflow
+
+```{r}
+rf_mod <- 
+  rand_forest(
+    mode = "classification",
+    mtry = tune(),
+    trees = tune()
+  ) |> 
+  set_engine("ranger", importance = "impurity")
+rf_mod
+```
+
+```{r}
+rf_wf <- workflow() |>
+  add_recipe(data_recipe) |>
+  add_model(rf_mod)
+rf_wf
+```
+
+#### Tuning grid
+
+```{r}
+rf_grid <- grid_regular(
+  trees(range = c(300L, 700L)), 
+  mtry(range = c(3L, 7L)),
+  levels = c(2, 4)
+  )
+rf_grid
+```
+
+#### Cross-validation
+
+```{r}
+set.seed(203)
+
+folds <- vfold_cv(mimic_train, v = 3)
+```
+
+```{r}
+if (file.exists("rf_res.rds")) {
+  rf_res <- read_rds("rf_res.rds")
+} else {
+  rf_res <- rf_wf |>
+    tune_grid(
+    resamples = folds,
+    grid = rf_grid,
+    metrics = metric_set(roc_auc, accuracy),
+    control = control_grid(verbose = TRUE)
+    )
+  write_rds(rf_res, "rf_res.rds")
+}
+rf_res
+```
+
+```{r}
+rf_res |>
+  collect_metrics() |>
+  print(width = Inf) |>
+  filter(.metric == "roc_auc") |>
+  ggplot(mapping = aes(x = trees, y = mean, color = factor(mtry))) +
+  geom_point() + 
+  geom_line() +
+  labs(x = "Num. of Trees", y = "CV AUC")
+```
+
+#### Finalize the model
+
+```{r}
+rf_res |>
+  show_best(metric = "roc_auc")
+
+```
+
+```{r}
+#Select best model
+best_rf <- rf_res |>
+  select_best(metric = "roc_auc")
+best_rf
+```
+
+```{r}
+# final workflow
+final_rf <- rf_wf |>
+  finalize_workflow(best_rf)
+final_rf
+```
+
+```{r}
+# Access the metrics of the best model after tuning
+best_rf_metrics <- collect_metrics(final_rf)
+
+# Print out the metrics
+best_rf_metrics
+
+```
+
+#### Visualize the final model
+
+```{r}
+final_logic_tree <- extract_workflow(final_logit_fit)
+
+final_logic_tree |>
+  extract_fit_parsnip() |>
+  vip()
+
+rm(final_logic_tree,final_logit_fit,
+   final_logit,logit_res,logit_grid)
 ```
 
 3.  Train and tune the models using the training set.
