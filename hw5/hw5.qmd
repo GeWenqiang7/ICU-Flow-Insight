@@ -293,7 +293,7 @@ final_logic_tree |>
   extract_fit_parsnip() |>
   vip()
 
-rm(final_logic_tree,final_logit_fit,
+rm(final_logic_tree,
    final_logit,logit_res,logit_grid)
 ```
 
@@ -430,7 +430,7 @@ final_boost_tree |>
   vip()
 
 rm(final_boost_tree,final_boost_fit,
-   final_boost_wf,bt_fit,param_grid)
+   final_boost_wf,param_grid)
 ```
 
 ### Random Forest
@@ -522,14 +522,14 @@ final_rf <- finalize_workflow(rf_wf, best_rf)
 ```
 
 ```{r}
-final_fit <- final_rf |>
+final_rf_fit <- final_rf |>
   last_fit(data_split)
 
-final_fit
+final_rf_fit
 ```
 
 ```{r}
-final_fit |> 
+final_rf_fit |> 
   collect_metrics()
 ```
 
@@ -537,7 +537,7 @@ final_fit |>
 
 ```{r}
 # Extract fitted model
-final_boost_tree <- extract_workflow(final_fit)
+final_boost_tree <- extract_workflow(final_rf_fit)
 
 final_boost_tree |>
   extract_fit_parsnip() |>
