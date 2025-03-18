@@ -1,0 +1,322 @@
+---
+title: "Biostat 203B Homework 5"
+subtitle: Due Mar 20 @ 11:59PM
+author: "Wenqiang Ge UID:106371961"
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    number-sections: false
+    toc: true
+    toc-depth: 4
+    toc-location: left
+    code-fold: false
+  # pdf:
+  #   documentclass: article
+  #   toc: true
+  #   toc-depth: 2
+  #   keep-tex: true
+  #   number-sections: true
+  #   highlight-style: tango
+---
+
+## Predicting ICU duration
+
+Using the ICU cohort `mimiciv_icu_cohort.rds` you built in Homework 4, develop at least three machine learning approaches (logistic regression with enet regularization, random forest, boosting, SVM, MLP, etc) plus a model stacking approach for predicting whether a patient's ICU stay will be longer than 2 days. You should use the `los_long` variable as the outcome. You algorithms can use patient demographic information (gender, age at ICU `intime`, marital status, race), ICU admission information (first care unit), the last lab measurements before the ICU stay, and first vital measurements during ICU stay as features. You are welcome to use any feature engineering techniques you think are appropriate; but make sure to not use features that are not available at an ICU stay's `intime`. For instance, `last_careunit` cannot be used in your algorithms.
+
+1.  Data preprocessing and feature engineering.
+
+```{r}
+# Load libraries
+library(GGally)
+library(gtsummary)
+library(ranger)
+library(tidyverse)
+library(tidymodels)
+library(xgboost)
+library(doParallel)
+library(stacks)
+library(keras)
+library(dplyr)
+library(e1071)
+library(rsample)
+library(glmnet)
+library(vip)
+library(ggplot2)
+library(gt)
+library(lubridate)
+
+```
+
+```{r}
+rmarkdown::render("hw5.qmd", envir = globalenv())
+```
+
+```{r}
+#loading data
+mimic_icu_cohort <- readRDS("../hw4/mimiciv_shiny/mimic_icu_cohort.rds")
+lab <- c("creatinine", "potassium", "sodium", "chloride", "bicarbonate", 
+              "hematocrit", "glucose", "wbc")
+
+vital <- c("heart_rate", "non-invasive_blood_pressure_systolic", 
+                "non-invasive_blood_pressure_diastolic", 
+                "temperature_fahrenheit", "respiratory_rate")
+
+#Select the variables
+mimic_icu_cohort <- mimic_icu_cohort |>
+  select(c("subject_id", "hadm_id", "stay_id",
+           "gender","first_careunit", 
+            "insurance","marital_status",
+           "race","age_intime",
+            all_of(lab), all_of(vital),
+           "los_long")) |>
+  arrange("subject_id", "hadm_id", "stay_id") 
+
+```
+
+```{r}
+#Convert gender to factor variables
+mimic_icu_cohort$gender <- ifelse(mimic_icu_cohort$gender == "M",0,1)
+mimic_icu_cohort$gender <- factor(mimic_icu_cohort$gender)
+
+# For character or factor variables, replace NA with 0, and label other unique values
+mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
+  # Only modify character or factor columns, but skip 'gender'
+  if (is.factor(x) || is.character(x)) {
+    # Skip the 'gender' column
+    if (!"gender" %in% names(mimic_icu_cohort)[
+      which(sapply(mimic_icu_cohort, identical, x))
+      ]) {
+      # Convert to character type if it is not gender
+      x <- as.character(x)
+      
+      # Replace NA with "0"
+      x[is.na(x)] <- "0"
+      
+      # Convert back to factor and then numeric
+      x <- factor(x)
+      return(as.numeric(x))  # Convert factor levels to numeric
+    }
+  }
+  return(x)  # Leave other columns unchanged
+})
+
+```
+
+```{r}
+# Check for outliers in numeric variables
+mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
+  if (is.numeric(x)) {
+    # Calculate the first (Q1) and third (Q3) quartiles, and the IQR (Interquartile Range)
+    Q1 <- quantile(x, 0.25, na.rm = TRUE)
+    Q3 <- quantile(x, 0.75, na.rm = TRUE)
+    IQR_value <- Q3 - Q1
+    
+    # Define the lower and upper limits for outliers using the IQR method
+    lower_limit <- Q1 - 1.5 * IQR_value
+    upper_limit <- Q3 + 1.5 * IQR_value
+    
+    # Replace values outside the defined limits with NA (outliers)
+    x[x < lower_limit | x > upper_limit] <- NA
+  }
+  return(x)
+})
+```
+
+```{r}
+#Replace NA values with the mean of the column
+mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
+  if (is.numeric(x)) {
+    x[is.na(x)] <- mean(x, na.rm = TRUE)  # Replace NA with the mean value
+  }
+  return(x)
+})
+```
+
+```{r}
+# Convert los_long to a factor
+mimic_icu_cohort$los_long <- factor(mimic_icu_cohort$los_long, levels = c(FALSE, TRUE))
+
+# Remove rows where los_long is NA
+mimic_icu_cohort <- mimic_icu_cohort %>%
+  drop_na(los_long)
+
+#Convert other variables to factors
+mimic_icu_cohort$marital_status <- factor(mimic_icu_cohort$marital_status)
+mimic_icu_cohort$race <- factor(mimic_icu_cohort$race)
+mimic_icu_cohort$first_careunit <- factor(mimic_icu_cohort$first_careunit)
+mimic_icu_cohort$insurance <- factor(mimic_icu_cohort$insurance)
+
+head(mimic_icu_cohort)
+```
+
+2.  Partition data into 50% training set and 50% test set. Stratify partitioning according to `los_long`. For grading purpose, sort the data by `subject_id`, `hadm_id`, and `stay_id` and use the seed `203` for the initial data split. Below is the sample code.
+
+#### Initial split into test and non-test sets
+
+```{r}
+set.seed(203)
+
+# sort
+mimic_icu_cohort <- mimic_icu_cohort |>
+  arrange(subject_id, hadm_id, stay_id)
+
+data_split <- initial_split(
+  mimic_icu_cohort, 
+  # stratify by los_long
+  strata = "los_long", 
+  prop = 0.5
+  )
+
+mimic_train <- training(data_split) |>
+  select(-subject_id, -hadm_id, -stay_id)
+dim(mimic_train )
+
+mimic_test <- testing(data_split) |>
+  select(-subject_id, -hadm_id, -stay_id)
+dim(mimic_test)
+```
+
+#### Recipe
+
+```{r}
+data_recipe <- 
+  recipe(
+    los_long ~ ., 
+    data = mimic_train
+    ) |>
+  step_dummy(all_nominal_predictors()) |>
+  step_zv(all_numeric_predictors()) |>
+  step_normalize(all_numeric_predictors())
+data_recipe
+```
+
+4.  Compare model classification performance on the test set. Report both the area under ROC curve and accuracy for each machine learning algorithm and the model stacking. Interpret the results. What are the most important features in predicting long ICU stays? How do the models compare in terms of performance and interpretability?
+
+### Stacking model
+
+#### Model & Workflow
+
+```{r}
+logit_res <- read_rds("logit_res.rds")
+bt_res <- read_rds("bt_fit.rds")
+rf_res <- read_rds("rf_res.rds")
+```
+
+```{r}
+library(doParallel)
+registerDoParallel(cores = 4)
+```
+
+```{r}
+# build the stacked ensemble
+if (file.exists("model_stack.rds")) {
+  model_stack_res <- read_rds("model_stack.rds")
+} else {
+  model_stack_res <- 
+    # initialize the stack
+    stacks() |>
+    # add candidate members
+    add_candidates(logit_res) |>
+    add_candidates(bt_res) |>
+    add_candidates(rf_res) |>
+    # determine how to combine their predictions
+    blend_predictions(
+      penalty = 10^(-2:0),
+      metrics = c("roc_auc")
+      ) |>
+    # fit the candidates with nonzero stacking coefficients
+    fit_members()
+  write_rds(model_stack_res, "model_stack.rds")
+}
+model_stack_res
+```
+
+#### Visualize the final model
+
+```{r}
+autoplot(model_stack_res)
+autoplot(model_stack_res, type = "members")
+autoplot(model_stack_res, type = "weights")
+```
+
+```{r}
+collect_parameters(model_stack_res, "logit_res")
+collect_parameters(model_stack_res, "bt_res")
+collect_parameters(model_stack_res, "rf_res")
+```
+
+#### Collect the parameters
+
+```{r}
+#Final classification
+stack_pred <- mimic_test |>
+  bind_cols(
+    predict(model_stack_res, 
+            new_data = mimic_test, 
+            type = "prob")) |>
+  mutate(pred = .pred_FALSE < 0.5) |>
+  mutate(pred = as.factor(pred)) |>
+  print(width = Inf)
+```
+
+```{r}
+yardstick::roc_auc(
+  stack_pred,
+  truth = los_long,
+  contains(".pred_FALSE")
+  )
+```
+
+```{r}
+yardstick::accuracy(
+  stack_pred,
+  truth = los_long,
+  estimate = pred
+  )
+```
+
+#### Compare the model results
+
+| Model                                        | Roc_Auc | Accuracy |
+|----------------------------------------------|---------|----------|
+| logistic regression with enet regularization | 0.595   | 0.570    |
+| Boosting                                     | 0.609   | 0.574    |
+| Random Forest                                | 0.617   | 0.583    |
+| Model stacking                               | 0.621   | 0.585    |
+
+```{r}
+model_results <- data.frame(
+  Model = c("logistic regression with enet regularization", "Boosting", "Random Forest", "Model stacking"),
+  Roc_Auc = c(0.595, 0.609, 0.617, 0.621),
+  Accuracy = c(0.570, 0.574, 0.583, 0.585)
+)
+
+model_results_long <- pivot_longer(model_results, cols = c(Roc_Auc, Accuracy), 
+                                   names_to = "Metric", values_to = "Value")
+
+ggplot(model_results_long, aes(x = Model, y = Value, fill = Model)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ Metric, scales = "free_y") +
+  labs(title = "Model Performance Comparison", x = "Model", y = "Score") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 15, hjust = 1),
+        legend.position = "none")
+
+```
+
+```{r}
+lg_vip
+bt_vip
+rf_vip
+```
+
+**Conclusion:**
+
+Model Stacking Achieves the Best Performance: The stacked model slightly outperforms all individual models, obtaining the highest ROC-AUC (0.621) and accuracy (0.585). This suggests that combining multiple models leads to better generalization. Random Forest Performs Well: Among single models, Random Forest has the highest ROC-AUC (0.617) and accuracy (0.583), indicating that ensemble methods work well for this classification task.
+
+Logistic Regression take First care unit as the most important feature. For Boosting and Random Forest, they both give more importance to Non-invasive blood pressure (systolic).
+
+Logistic Regression is the most interpretable but performs the worst. Boosting and Random Forest offer a balance, but Random Forest achieves better accuracy. Stacked Models provide the best results but are the hardest to interpret.
+
+Logistic regression is the easiest to explain because it assigns clear coefficients to features, making it easy to interpret. Boosting provides moderate interpretability because it provides feature importance, but relies on many decision trees, making it difficult to track a single prediction. Random forests have lower interpretability because they are composed of multiple trees, making it difficult to understand the specific decision path. Model stacking provides the highest performance but the most difficult to explain because it combines multiple models into a complex black box system. Ultimately, the trade-off between accuracy and interpretability depends on the use case - when interpretation is needed, logistic regression is more desirable, while ensemble models are more suitable for maximizing predictive performance.
