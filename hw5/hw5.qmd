@@ -71,7 +71,7 @@ mimic_icu_cohort <- mimic_icu_cohort |>
 mimic_icu_cohort$gender <- ifelse(mimic_icu_cohort$gender == "M",0,1)
 mimic_icu_cohort$gender <- factor(mimic_icu_cohort$gender)
 
-# For character or factor variables, replace NA with 0, and label other unique values
+# replace NA with 0, label other unique values
 mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
   # Only modify character or factor columns, but skip 'gender'
   if (is.factor(x) || is.character(x)) {
@@ -99,7 +99,7 @@ mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
 # Check for outliers in numeric variables
 mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
   if (is.numeric(x)) {
-    # Calculate the first (Q1) and third (Q3) quartiles, and the IQR (Interquartile Range)
+    # Calculate the Q1 and Q3, and the IQR 
     Q1 <- quantile(x, 0.25, na.rm = TRUE)
     Q3 <- quantile(x, 0.75, na.rm = TRUE)
     IQR_value <- Q3 - Q1
@@ -127,7 +127,8 @@ mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
 
 ```{r}
 # Convert los_long to a factor
-mimic_icu_cohort$los_long <- factor(mimic_icu_cohort$los_long, levels = c(FALSE, TRUE))
+mimic_icu_cohort$los_long <- factor(mimic_icu_cohort$los_long, 
+                                    levels = c(FALSE, TRUE))
 
 # Remove rows where los_long is NA
 mimic_icu_cohort <- mimic_icu_cohort %>%
@@ -292,9 +293,13 @@ final_logic_tree <- extract_workflow(final_logit_fit)
 final_logic_tree |>
   extract_fit_parsnip() |>
   vip()
+```
 
+```{r}
 rm(final_logic_tree,
-   final_logit,logit_res,logit_grid)
+   final_logit,logit_res,
+   logit_grid,logit_model,
+   logit_wf)
 ```
 
 ### Boosting
@@ -337,33 +342,27 @@ param_grid
 
 ```{r}
 library(doParallel)
-registerDoParallel(cores = 4)  # Set the number of cores you want to use
+registerDoParallel(cores = 4) 
 ```
 
 #### Cross-validation
 
 ```{r}
-bt_fit <- bt_wf %>%
+set.seed(203)
+
+if (file.exists("bt_fit.rds")) {
+  bt_fit <- read_rds("bt_fit.rds")
+} else {
+  bt_fit <- bt_wf |>
   tune_grid(
     resamples = folds,
     grid = param_grid,
     metrics = metric_set(yardstick::roc_auc,
                          yardstick::accuracy)
     )
+  write_rds(bt_fit, "bt_fit.rds")
+}
 bt_fit
-
-```
-
-```{r}
-bt_fit <- bt_wf |>
-  tune_grid(
-    resamples = folds,
-    grid = param_grid,
-    metrics = metric_set(roc_auc, accuracy),
-    control = control_stack_grid()
-  )
-
-bt_fit |> write_rds("./boost_fit.rds")
 ```
 
 ```{r}
@@ -372,7 +371,7 @@ registerDoSEQ()
 ```
 
 ```{r}
-bt_fit <- readRDS("./boost_fit.rds")
+bt_fit <- readRDS("bt_fit.rds")
 
 bt_fit |>
   collect_metrics() |>
@@ -383,6 +382,7 @@ bt_fit |>
                y = mean, 
                color = factor(tree_depth))) +
   geom_point() +
+  geom_line() +
   labs(x = "Learning Rate", y = "CV AUC") +
   scale_x_log10()
 
@@ -412,7 +412,6 @@ set.seed(203)
 final_boost_fit <- 
   final_boost_wf |>
   last_fit(data_split)
-
 ```
 
 ```{r}
@@ -428,9 +427,12 @@ final_boost_tree <- extract_workflow(final_boost_fit)
 final_boost_tree |>
   extract_fit_parsnip() |>
   vip()
+```
 
-rm(final_boost_tree,final_boost_fit,
-   final_boost_wf,param_grid)
+```{r}
+rm(final_boost_tree,
+   final_boost_wf,
+   param_grid,bt_mod,bt_wf)
 ```
 
 ### Random Forest
@@ -506,7 +508,6 @@ rf_res |>
 ```{r}
 rf_res |>
   show_best(metric = "roc_auc")
-
 ```
 
 ```{r}
@@ -518,7 +519,6 @@ best_rf
 
 ```{r}
 final_rf <- finalize_workflow(rf_wf, best_rf)
-
 ```
 
 ```{r}
@@ -537,11 +537,17 @@ final_rf_fit |>
 
 ```{r}
 # Extract fitted model
-final_boost_tree <- extract_workflow(final_rf_fit)
+final_rf_tree <- extract_workflow(final_rf_fit)
 
-final_boost_tree |>
+final_rf_tree |>
   extract_fit_parsnip() |>
   vip()
+```
+
+```{r}
+rm(rf_mod,rf_wf,rf_grid,
+   folds,rf_res,final_rf,
+   final_rf_tree)
 ```
 
 4.  Compare model classification performance on the test set. Report both the area under ROC curve and accuracy for each machine learning algorithm and the model stacking. Interpret the results. What are the most important features in predicting long ICU stays? How do the models compare in terms of performance and interpretability?
