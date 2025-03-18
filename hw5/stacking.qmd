@@ -42,6 +42,14 @@ library(e1071)
 library(rsample)
 library(glmnet)
 library(vip)
+library(ggplot2)
+library(gt)
+library(lubridate)
+
+```
+
+```{r}
+rmarkdown::render("hw5.qmd", envir = globalenv())
 ```
 
 ```{r}
@@ -183,23 +191,9 @@ data_recipe <-
 data_recipe
 ```
 
-```{r}
-folds <- vfold_cv(mimic_train, v = 2)
-```
-
 4.  Compare model classification performance on the test set. Report both the area under ROC curve and accuracy for each machine learning algorithm and the model stacking. Interpret the results. What are the most important features in predicting long ICU stays? How do the models compare in terms of performance and interpretability?
 
 ### Stacking model
-
-```{r}
-library(stacks)
-library(ranger)
-library(ggplot2)
-library(gt)
-library(gtsummary)
-library(tidyverse)
-library(lubridate)
-```
 
 #### Model & Workflow
 
@@ -286,7 +280,43 @@ yardstick::accuracy(
 
 | Model                                        | Roc_Auc | Accuracy |
 |----------------------------------------------|---------|----------|
-| logistic regression with enet regularization |         |          |
-| Boosting                                     |         |          |
-| Random Forest                                |         |          |
-| Model stacking                               |         |          |
+| logistic regression with enet regularization | 0.595   | 0.570    |
+| Boosting                                     | 0.609   | 0.574    |
+| Random Forest                                | 0.617   | 0.583    |
+| Model stacking                               | 0.621   | 0.585    |
+
+```{r}
+model_results <- data.frame(
+  Model = c("logistic regression with enet regularization", "Boosting", "Random Forest", "Model stacking"),
+  Roc_Auc = c(0.595, 0.609, 0.617, 0.621),
+  Accuracy = c(0.570, 0.574, 0.583, 0.585)
+)
+
+model_results_long <- pivot_longer(model_results, cols = c(Roc_Auc, Accuracy), 
+                                   names_to = "Metric", values_to = "Value")
+
+ggplot(model_results_long, aes(x = Model, y = Value, fill = Model)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ Metric, scales = "free_y") +
+  labs(title = "Model Performance Comparison", x = "Model", y = "Score") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 15, hjust = 1),
+        legend.position = "none")
+
+```
+
+```{r}
+lg_vip
+bt_vip
+rf_vip
+```
+
+**Conclusion:**
+
+Model Stacking Achieves the Best Performance: The stacked model slightly outperforms all individual models, obtaining the highest ROC-AUC (0.621) and accuracy (0.585). This suggests that combining multiple models leads to better generalization. Random Forest Performs Well: Among single models, Random Forest has the highest ROC-AUC (0.617) and accuracy (0.583), indicating that ensemble methods work well for this classification task.
+
+Logistic Regression take First care unit as the most important feature. For Boosting and Random Forest, they both give more importance to Non-invasive blood pressure (systolic).
+
+Logistic Regression is the most interpretable but performs the worst. Boosting and Random Forest offer a balance, but Random Forest achieves better accuracy. Stacked Models provide the best results but are the hardest to interpret.
+
+Logistic regression is the easiest to explain because it assigns clear coefficients to features, making it easy to interpret. Boosting provides moderate interpretability because it provides feature importance, but relies on many decision trees, making it difficult to track a single prediction. Random forests have lower interpretability because they are composed of multiple trees, making it difficult to understand the specific decision path. Model stacking provides the highest performance but the most difficult to explain because it combines multiple models into a complex black box system. Ultimately, the trade-off between accuracy and interpretability depends on the use case - when interpretation is needed, logistic regression is more desirable, while ensemble models are more suitable for maximizing predictive performance.
