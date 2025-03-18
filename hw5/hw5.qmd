@@ -185,7 +185,7 @@ data_recipe
 ```
 
 ```{r}
-folds <- vfold_cv(mimic_train, v = 5)
+folds <- vfold_cv(mimic_train, v = 2)
 ```
 
 ### logistic regression with enet regularization
@@ -210,9 +210,9 @@ logit_wf <- workflow() |>
 
 ```{r}
 logit_grid <- grid_regular(
-  penalty(range = c(-6, 4)), 
+  penalty(range = c(-3, 0)), 
   mixture(),
-  levels = c(40, 4)
+  levels = 3
 )
 ```
 
@@ -290,9 +290,10 @@ final_logit_fit |>
 ```{r}
 final_logic_tree <- extract_workflow(final_logit_fit)
 
-final_logic_tree |>
+lg_vip <- final_logic_tree |>
   extract_fit_parsnip() |>
   vip()
+lg_vip
 ```
 
 ```{r}
@@ -311,7 +312,7 @@ rm(final_logic_tree,
 bt_mod <- 
   boost_tree(
     mode = "classification",
-    trees = 800, 
+    trees = 100, 
     tree_depth = tune(),
     learn_rate = tune()
   ) %>% 
@@ -332,10 +333,10 @@ bt_wf
 ```{r}
 #Tuning
 param_grid <- grid_regular(
-  tree_depth(range = c(1L, 3L)),
-  learn_rate(range = c(-5, 2), trans = log10_trans()),
-  levels = c(3, 1)
-  )
+  tree_depth(range = c(1L, 3L)), 
+  learn_rate(range = c(-3, 0), trans = log10_trans()),  
+  levels = 3
+)
 param_grid
 
 ```
@@ -358,7 +359,8 @@ if (file.exists("bt_fit.rds")) {
     resamples = folds,
     grid = param_grid,
     metrics = metric_set(yardstick::roc_auc,
-                         yardstick::accuracy)
+                         yardstick::accuracy),
+    control = control_stack_grid()
     )
   write_rds(bt_fit, "bt_fit.rds")
 }
@@ -424,9 +426,10 @@ final_boost_fit |>
 ```{r}
 final_boost_tree <- extract_workflow(final_boost_fit)
 
-final_boost_tree |>
+bt_vip <- final_boost_tree |>
   extract_fit_parsnip() |>
   vip()
+bt_vip
 ```
 
 ```{r}
@@ -461,10 +464,11 @@ rf_wf
 
 ```{r}
 rf_grid <- grid_regular(
-  trees(range = c(300L, 700L)), 
-  mtry(range = c(3L, 7L)),
-  levels = c(2, 4)
-  )
+  trees(range = c(100L, 300L)),  
+  mtry(range = c(3L, 5L)),  
+  levels = c(2, 2)  
+)
+
 rf_grid
 ```
 
@@ -472,8 +476,6 @@ rf_grid
 
 ```{r}
 set.seed(203)
-
-folds <- vfold_cv(mimic_train, v = 3)
 ```
 
 ```{r}
@@ -485,7 +487,7 @@ if (file.exists("rf_res.rds")) {
     resamples = folds,
     grid = rf_grid,
     metrics = metric_set(roc_auc, accuracy),
-    control = control_grid(verbose = TRUE)
+    control = control_stack_grid()
     )
   write_rds(rf_res, "rf_res.rds")
 }
@@ -539,9 +541,10 @@ final_rf_fit |>
 # Extract fitted model
 final_rf_tree <- extract_workflow(final_rf_fit)
 
-final_rf_tree |>
+rf_vip <- final_rf_tree |>
   extract_fit_parsnip() |>
   vip()
+rf_vip
 ```
 
 ```{r}
