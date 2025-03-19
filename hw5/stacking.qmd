@@ -79,7 +79,7 @@ mimic_icu_cohort <- mimic_icu_cohort |>
 mimic_icu_cohort$gender <- ifelse(mimic_icu_cohort$gender == "M",0,1)
 mimic_icu_cohort$gender <- factor(mimic_icu_cohort$gender)
 
-# For character or factor variables, replace NA with 0, and label other unique values
+# replace NA with 0, and label other unique values
 mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
   # Only modify character or factor columns, but skip 'gender'
   if (is.factor(x) || is.character(x)) {
@@ -107,7 +107,7 @@ mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
 # Check for outliers in numeric variables
 mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
   if (is.numeric(x)) {
-    # Calculate the first (Q1) and third (Q3) quartiles, and the IQR (Interquartile Range)
+    # Calculate the Q1and Q3, and the IQR
     Q1 <- quantile(x, 0.25, na.rm = TRUE)
     Q3 <- quantile(x, 0.75, na.rm = TRUE)
     IQR_value <- Q3 - Q1
@@ -135,7 +135,8 @@ mimic_icu_cohort[] <- lapply(mimic_icu_cohort, function(x) {
 
 ```{r}
 # Convert los_long to a factor
-mimic_icu_cohort$los_long <- factor(mimic_icu_cohort$los_long, levels = c(FALSE, TRUE))
+mimic_icu_cohort$los_long <- factor(mimic_icu_cohort$los_long, 
+                                    levels = c(FALSE, TRUE))
 
 # Remove rows where los_long is NA
 mimic_icu_cohort <- mimic_icu_cohort %>%
@@ -287,7 +288,8 @@ yardstick::accuracy(
 
 ```{r}
 model_results <- data.frame(
-  Model = c("logistic regression with enet regularization", "Boosting", "Random Forest", "Model stacking"),
+  Model = c("logistic regression with enet regularization", "Boosting", 
+            "Random Forest", "Model stacking"),
   Roc_Auc = c(0.595, 0.609, 0.617, 0.621),
   Accuracy = c(0.570, 0.574, 0.583, 0.585)
 )
